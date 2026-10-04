@@ -23,7 +23,11 @@
 </div>
 
 <p align="center">
-  <img src="docs/images/wanxiang-banner-en.png" width="100%" alt="Wanxiang: more possibilities in every conversation, with light and dark chat previews">
+  <a href="docs/posters/wanxiang-poster-landscape.png"><img src="docs/posters/wanxiang-poster-landscape.png" width="100%" alt="Wanxiang brand poster in Chinese: models come together, possibilities open up. Give every idea a response."></a>
+</p>
+<p align="center">
+  <a href="docs/posters/wanxiang-poster-landscape.png">Landscape poster</a> ·
+  <a href="docs/posters/wanxiang-poster-portrait.png">Portrait poster</a> (Chinese)
 </p>
 
 ## Meet Wanxiang

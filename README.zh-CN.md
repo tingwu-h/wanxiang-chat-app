@@ -23,7 +23,11 @@
 </div>
 
 <p align="center">
-  <img src="docs/images/wanxiang-banner.png" width="100%" alt="万象：让每一次对话都有更多可能，展示浅色与深色聊天界面">
+  <a href="docs/posters/wanxiang-poster-landscape.png"><img src="docs/posters/wanxiang-poster-landscape.png" width="100%" alt="万象聚合，模型无界。让每个想法，都有回响。万象品牌宣传海报。"></a>
+</p>
+<p align="center">
+  <a href="docs/posters/wanxiang-poster-landscape.png">横版海报原图</a> ·
+  <a href="docs/posters/wanxiang-poster-portrait.png">竖版海报原图</a>
 </p>
 
 ## 项目简介
