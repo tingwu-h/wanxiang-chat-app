@@ -29,10 +29,11 @@
 Whether you are organizing an idea, discussing code, or asking about an image, Wanxiang keeps everyday conversations within reach: configure your providers, switch models when needed, and keep your discussions in local conversation history.
 
 <p align="center">
-  <a href="docs/posters/wanxiang-poster-landscape.png"><img src="docs/posters/wanxiang-poster-landscape.png" width="100%" alt="Wanxiang brand poster in Chinese: models come together, possibilities open up. Give every idea a response."></a>
+  <a href="docs/posters/wanxiang-poster-landscape-en.png"><img src="docs/posters/wanxiang-poster-landscape-en.png" width="100%" alt="Wanxiang brand poster in English: an all-in-one multi-model platform. Turn your ideas into reality, together."></a>
 </p>
 <p align="center">
-  <a href="docs/posters/wanxiang-poster-landscape.png">Landscape poster</a> ·
+  <a href="docs/posters/wanxiang-poster-landscape-en.png">Landscape poster</a> (English) ·
+  <a href="docs/posters/wanxiang-poster-landscape.png">Landscape poster</a> (Chinese) ·
   <a href="docs/posters/wanxiang-poster-portrait.png">Portrait poster</a> (Chinese)
 </p>
 
