@@ -1,4 +1,7 @@
 import 'package:deepseek_chat/utils/app_localizations.dart';
+
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -15,10 +18,16 @@ class MessageListView extends StatefulWidget {
     super.key,
     required this.messages,
     required this.isLoading,
+    this.topPadding = 8,
+    this.bottomPadding = 12,
+    this.edgeColor,
   });
 
   final List<ChatMessage> messages;
   final bool isLoading;
+  final double topPadding;
+  final double bottomPadding;
+  final Color? edgeColor;
 
   @override
   State<MessageListView> createState() => _MessageListViewState();
@@ -66,21 +75,100 @@ class _MessageListViewState extends State<MessageListView> {
     final int lastIndex = messages.length;
     final bool typingLast = widget.isLoading;
 
-    return ListView.builder(
-      controller: _controller,
-      reverse: true,
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.only(top: 8, bottom: 12),
-      // 数据倒序绑定，index 0 显示最新一条
-      itemCount: lastIndex,
-      itemBuilder: (BuildContext context, int index) {
-        final int i = lastIndex - 1 - index;
-        final ChatMessage message = messages[i];
-        return MessageBubble(
-          message: message,
-          showTyping: typingLast && index == 0,
-        );
-      },
+    final edgeColor =
+        widget.edgeColor ?? Theme.of(context).scaffoldBackgroundColor;
+    return Stack(
+      fit: StackFit.expand,
+      children: <Widget>[
+        ListView.builder(
+          controller: _controller,
+          reverse: true,
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.only(
+            top: widget.topPadding,
+            bottom: widget.bottomPadding,
+          ),
+          // 数据倒序绑定，index 0 显示最新一条
+          itemCount: lastIndex,
+          itemBuilder: (BuildContext context, int index) {
+            final int i = lastIndex - 1 - index;
+            final ChatMessage message = messages[i];
+            return MessageBubble(
+              message: message,
+              showTyping: typingLast && index == 0,
+            );
+          },
+        ),
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          height: widget.topPadding,
+          child: _EdgeFade(color: edgeColor, top: true),
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: widget.bottomPadding,
+          child: _EdgeFade(color: edgeColor, top: false),
+        ),
+      ],
+    );
+  }
+}
+
+/// Narrow blur bands increase toward the edge; the continuous tint hides seams.
+/// IgnorePointer lets users scroll through the unoccupied space around controls.
+class _EdgeFade extends StatelessWidget {
+  const _EdgeFade({required this.color, required this.top});
+
+  final Color color;
+  final bool top;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          const sigmas = <double>[.3, 1, 2.5, 5];
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              for (var band = 0; band < sigmas.length; band++)
+                Positioned(
+                  top: constraints.maxHeight * band / sigmas.length,
+                  height: constraints.maxHeight / sigmas.length,
+                  left: 0,
+                  right: 0,
+                  child: ClipRect(
+                    child: BackdropFilter(
+                      filter: ui.ImageFilter.blur(
+                        sigmaX: sigmas[top ? sigmas.length - 1 - band : band],
+                        sigmaY: sigmas[top ? sigmas.length - 1 - band : band],
+                      ),
+                      child: const SizedBox.expand(),
+                    ),
+                  ),
+                ),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: top ? Alignment.topCenter : Alignment.bottomCenter,
+                    end: top ? Alignment.bottomCenter : Alignment.topCenter,
+                    colors: [
+                      color,
+                      color.withValues(alpha: .64),
+                      color.withValues(alpha: 0),
+                    ],
+                    stops: const [0, .48, 1],
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }

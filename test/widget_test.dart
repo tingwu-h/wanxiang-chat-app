@@ -12,6 +12,8 @@ import 'package:deepseek_chat/providers/app_settings_provider.dart';
 import 'package:deepseek_chat/providers/chat_provider.dart';
 import 'package:deepseek_chat/services/deepseek_service.dart';
 import 'package:deepseek_chat/services/storage_service.dart';
+import 'package:deepseek_chat/widgets/message_bubble.dart';
+import 'package:deepseek_chat/widgets/message_list_view.dart';
 
 /// 用假的 http.Client 替代真实网络请求。
 class _FakeClient extends http.BaseClient {
@@ -90,13 +92,56 @@ class _Harness {
 }
 
 void main() {
+  testWidgets(
+    'floating composer reserves space as typing grows; history scrolls',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      tester.view.padding = const FakeViewPadding(top: 24, bottom: 24);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPadding);
+      final h = await _buildHarness();
+      for (var i = 0; i < 12; i++) {
+        await h.chat.send('历史消息 $i：保留这段内容，供上下滚动阅读。', h.settings.settings);
+      }
+      await tester.pumpWidget(h.app);
+      await tester.pumpAndSettle();
+      final list = find.descendant(
+        of: find.byType(MessageListView),
+        matching: find.byType(ListView),
+      );
+      final controller = tester.widget<ListView>(list).controller!;
+      final composer = find.byKey(const ValueKey('chat-bottom-surface'));
+      final shortHeight = tester.getSize(composer).height;
+      await tester.enterText(find.byType(TextField), '第一行\n第二行\n第三行\n第四行');
+      await tester.pumpAndSettle();
+      expect(tester.getSize(composer).height, greaterThan(shortHeight));
+      final newest = find.byWidgetPredicate(
+        (w) => w is MessageBubble && identical(w.message, h.chat.messages.last),
+      );
+      expect(
+        tester.getBottomLeft(newest).dy,
+        lessThan(tester.getTopLeft(composer).dy),
+      );
+      await tester.dragFrom(const Offset(195, 460), const Offset(0, 230));
+      await tester.pumpAndSettle();
+      expect(controller.offset, greaterThan(0));
+      await tester.enterText(find.byType(TextField), '一行');
+      await tester.pumpAndSettle();
+      expect(tester.getSize(composer).height, shortHeight);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('首页展示标题、输入框与发送按钮', (WidgetTester tester) async {
     final _Harness h = await _buildHarness();
     await tester.pumpWidget(h.app);
     await tester.pumpAndSettle();
 
-    // 顶部显示会话名称，空态只保留品牌文案。
-    expect(find.text('新对话'), findsOneWidget);
+    // 顶部不再显示会话名称，空态只保留品牌文案。
+    expect(find.byKey(const ValueKey('floating-top-bar')), findsOneWidget);
+    expect(find.text('新对话'), findsNothing);
     expect(find.text('万象聚合，模型无界'), findsOneWidget);
     expect(find.text('给万象发消息…'), findsOneWidget);
     expect(find.byIcon(Icons.arrow_upward_rounded), findsOneWidget);
@@ -313,10 +358,11 @@ void main() {
       await h.settings.update(model: 'a-very-long-custom-model-name');
       await tester.pumpWidget(h.app);
       await tester.pumpAndSettle();
-      final bar = tester.widget<AppBar>(find.byType(AppBar));
-      expect(bar.bottom, isNull);
-      expect(bar.preferredSize.height, 56);
-      expect(tester.getSize(find.byType(AppBar)).height, 56);
+      final topBar = find.byKey(const ValueKey('floating-top-bar'));
+      expect(topBar, findsOneWidget);
+      expect(find.byType(AppBar), findsNothing);
+      expect(tester.getSize(topBar).height, lessThanOrEqualTo(64));
+      expect(find.byKey(const ValueKey('conversation-title')), findsNothing);
       expect(find.byIcon(Icons.add_comment_outlined), findsNothing);
       final selector = find.byKey(const ValueKey('chat-model-selector'));
       expect(
@@ -412,7 +458,7 @@ void main() {
   );
 
   testWidgets(
-    'header follows conversation rename and selection with keyboard open',
+    'floating toolbar stays title-free when conversations are renamed',
     (tester) async {
       tester.view.physicalSize = const Size(320, 640);
       tester.view.devicePixelRatio = 1;
@@ -426,20 +472,12 @@ void main() {
       await h.chat.renameConversation(id, '我的长会话名称测试：旅行计划与每日安排');
       await tester.pumpWidget(h.app);
       await tester.pumpAndSettle();
-      expect(
-        tester
-            .widget<Text>(find.byKey(const ValueKey('conversation-title')))
-            .data,
-        '我的长会话名称测试：旅行计划与每日安排',
-      );
+      expect(find.byKey(const ValueKey('floating-top-bar')), findsOneWidget);
+      expect(find.byKey(const ValueKey('conversation-title')), findsNothing);
       await h.chat.renameConversation(id, '新名称');
       await tester.pumpAndSettle();
-      expect(
-        tester
-            .widget<Text>(find.byKey(const ValueKey('conversation-title')))
-            .data,
-        '新名称',
-      );
+      expect(find.byKey(const ValueKey('floating-top-bar')), findsOneWidget);
+      expect(find.byKey(const ValueKey('conversation-title')), findsNothing);
       expect(
         tester
             .getBottomLeft(find.byKey(const ValueKey('chat-model-selector')))

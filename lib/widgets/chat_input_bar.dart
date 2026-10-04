@@ -104,16 +104,23 @@ class _ChatInputBarState extends State<ChatInputBar> {
           children: [
             Container(
               key: const ValueKey('message-composer'),
-              margin: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+              margin: const EdgeInsets.fromLTRB(16, 4, 16, 12),
               padding: const EdgeInsets.fromLTRB(10, 8, 10, 2),
               decoration: BoxDecoration(
                 color: widget.translucent
-                    ? scheme.surfaceContainerLow.withValues(alpha: .55)
-                    : scheme.surface,
+                    ? scheme.surfaceContainerLow.withValues(alpha: .82)
+                    : scheme.surface.withValues(alpha: .96),
                 borderRadius: BorderRadius.circular(26),
                 border: Border.all(
-                  color: scheme.outlineVariant.withValues(alpha: 0.6),
+                  color: scheme.outlineVariant.withValues(alpha: 0.52),
                 ),
+                boxShadow: <BoxShadow>[
+                  BoxShadow(
+                    color: scheme.shadow.withValues(alpha: .16),
+                    blurRadius: 20,
+                    offset: const Offset(0, 7),
+                  ),
+                ],
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,

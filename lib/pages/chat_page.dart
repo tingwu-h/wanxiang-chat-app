@@ -19,10 +19,9 @@ import 'package:deepseek_chat/services/platform_service.dart';
 import 'package:deepseek_chat/widgets/chat_input_bar.dart';
 import 'package:deepseek_chat/widgets/conversation_drawer.dart';
 import 'package:deepseek_chat/widgets/message_list_view.dart';
-import 'package:deepseek_chat/theme/app_theme.dart';
 import 'package:deepseek_chat/utils/app_localizations.dart';
 
-/// 主页面：会话标题与操作、消息列表、输入框及当前服务商模型选择。
+/// 主页面：悬浮操作栏、消息列表、悬浮输入框及当前服务商模型选择。
 class ChatPage extends StatefulWidget {
   const ChatPage({super.key});
 
@@ -33,6 +32,8 @@ class ChatPage extends StatefulWidget {
 class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final AttachmentService _attachments = AttachmentService();
+  final GlobalKey _composerKey = GlobalKey();
+  double _composerHeight = 140;
 
   /// 已选、还没发出去的附件
   final List<ChatAttachment> _pending = <ChatAttachment>[];
@@ -263,6 +264,18 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
   // -------------------------------------------------------------- 构建
 
+  void _measureComposer() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final box = _composerKey.currentContext?.findRenderObject() as RenderBox?;
+      if (box != null &&
+          box.hasSize &&
+          (box.size.height - _composerHeight).abs() > .5) {
+        setState(() => _composerHeight = box.size.height);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final ChatProvider chat = context.watch<ChatProvider>();
@@ -288,6 +301,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
             );
 
     _maybeShowError(chat);
+    _measureComposer();
 
     return PopScope(
       // 正在生成时先拦一次返回：中断流式请求并保留已收到的内容，然后再退出
@@ -355,88 +369,132 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 onOpenSettings: _openSettings,
                 onClearAll: () => chat.clearAllConversations(),
               ),
-              appBar: AppBar(
-                backgroundColor: customBackground
-                    ? AppTheme.chatChromeColor(scheme)
-                    : null,
-                surfaceTintColor: Colors.transparent,
-                systemOverlayStyle: systemStyle,
-                leading: IconButton(
-                  tooltip: tr(context, '历史对话'),
-                  icon: const Icon(Icons.menu),
-                  onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-                ),
-                toolbarHeight: 56,
-                titleSpacing: 0,
-                title: Tooltip(
-                  message: chat.activeTitle,
-                  child: Text(
-                    chat.activeTitle == '新对话'
-                        ? tr(context, '新对话')
-                        : chat.activeTitle,
-                    key: const ValueKey('conversation-title'),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                actions: <Widget>[
-                  PopupMenuButton<String>(
-                    clipBehavior: Clip.antiAlias,
-                    tooltip: tr(context, '对话操作'),
-                    onSelected: (String value) {
-                      if (value == 'new') _newConversation();
-                      if (value == 'clear') _confirmClearCurrent();
-                    },
-                    itemBuilder: (BuildContext context) =>
-                        <PopupMenuEntry<String>>[
-                          PopupMenuItem<String>(
-                            value: 'new',
-                            child: ListTile(
-                              dense: true,
-                              contentPadding: EdgeInsets.zero,
-                              leading: const Icon(Icons.add_comment_outlined),
-                              title: Text(tr(context, '新建对话')),
-                            ),
-                          ),
-                          PopupMenuItem<String>(
-                            value: 'clear',
-                            child: ListTile(
-                              dense: true,
-                              contentPadding: EdgeInsets.zero,
-                              leading: const Icon(Icons.delete_outline),
-                              title: Text(tr(context, '清空当前对话')),
-                            ),
-                          ),
-                        ],
-                  ),
-                ],
-              ),
-              body: Column(
-                children: <Widget>[
-                  Expanded(
-                    child: MessageListView(
+              body: SafeArea(
+                top: true,
+                bottom: false,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: <Widget>[
+                    MessageListView(
                       messages: chat.messages,
                       isLoading: chat.isLoading,
+                      topPadding: 88,
+                      bottomPadding: _composerHeight + 12,
+                      edgeColor: customBackground ? scheme.surface : null,
                     ),
-                  ),
-                  ChatInputBar(
-                    translucent: customBackground,
-                    modelSelector: _buildModelSelector(settings, chat),
-                    isLoading: chat.isLoading,
-                    enabled: settings.hasApiKey,
-                    attachments: _pending,
-                    onSend: _handleSend,
-                    onStop: chat.stop,
-                    onPickImages: _pickImages,
-                    onPickFiles: _pickFiles,
-                    onRemoveAttachment: _removePending,
-                  ),
-                ],
+                    Positioned(
+                      top: 8,
+                      left: 16,
+                      right: 16,
+                      child: _buildFloatingTopBar(chat),
+                    ),
+                    Align(
+                      alignment: Alignment.bottomCenter,
+                      child:
+                          NotificationListener<SizeChangedLayoutNotification>(
+                            onNotification: (_) {
+                              _measureComposer();
+                              return false;
+                            },
+                            child: SizeChangedLayoutNotifier(
+                              child: ChatInputBar(
+                                key: _composerKey,
+                                translucent: customBackground,
+                                modelSelector: _buildModelSelector(
+                                  settings,
+                                  chat,
+                                ),
+                                isLoading: chat.isLoading,
+                                enabled: settings.hasApiKey,
+                                attachments: _pending,
+                                onSend: _handleSend,
+                                onStop: chat.stop,
+                                onPickImages: _pickImages,
+                                onPickFiles: _pickFiles,
+                                onRemoveAttachment: _removePending,
+                              ),
+                            ),
+                          ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildFloatingTopBar(ChatProvider chat) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    Widget capsule(Widget child) => Material(
+      color: scheme.surface.withValues(alpha: .92),
+      elevation: 5,
+      shadowColor: scheme.shadow.withValues(alpha: .18),
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(28),
+        side: BorderSide(color: scheme.outlineVariant.withValues(alpha: .42)),
+      ),
+      child: child,
+    );
+    return Row(
+      key: const ValueKey('floating-top-bar'),
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: <Widget>[
+        capsule(
+          IconButton(
+            tooltip: tr(context, '历史对话'),
+            icon: const Icon(Icons.menu),
+            onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+          ),
+        ),
+        capsule(
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                IconButton(
+                  tooltip: tr(context, '新建对话'),
+                  icon: const Icon(Icons.edit_square),
+                  onPressed: _newConversation,
+                ),
+                PopupMenuButton<String>(
+                  clipBehavior: Clip.antiAlias,
+                  tooltip: tr(context, '对话操作'),
+                  onSelected: (String value) {
+                    if (value == 'new') _newConversation();
+                    if (value == 'clear') _confirmClearCurrent();
+                  },
+                  itemBuilder: (BuildContext context) =>
+                      <PopupMenuEntry<String>>[
+                        PopupMenuItem<String>(
+                          value: 'new',
+                          child: ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(Icons.add_comment_outlined),
+                            title: Text(tr(context, '新建对话')),
+                          ),
+                        ),
+                        PopupMenuItem<String>(
+                          value: 'clear',
+                          child: ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(Icons.delete_outline),
+                            title: Text(tr(context, '清空当前对话')),
+                          ),
+                        ),
+                      ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 

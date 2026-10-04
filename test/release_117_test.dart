@@ -405,8 +405,24 @@ void main() {
     }
 
     await screenshot('chat-light');
+    Future<void> englishChat(String name) async {
+      final messages = chat.messages;
+      final original = messages.map((m) => m.content).toList();
+      messages[0].content = 'Help me turn today’s idea into three steps.';
+      messages[1].content = 'Let’s start with something small:\n\n1. **Write it down**: describe your idea in one sentence.\n2. **Try it out**: choose one small experiment you can finish today.\n3. **Look back**: note what you learned and decide what comes next.\n\nWhich idea would you like to explore?';
+      await settings.updateAppearance(language: 'en');
+      await tester.pumpAndSettle();
+      await screenshot(name);
+      for (var i = 0; i < messages.length; i++) {
+        messages[i].content = original[i];
+      }
+      await settings.updateAppearance(language: 'zh_CN');
+      await tester.pumpAndSettle();
+    }
+
+    await englishChat('chat-light-en');
     final composer = find.byKey(const ValueKey('message-composer'));
-    expect(tester.getSize(composer).height, lessThanOrEqualTo(112));
+    expect(tester.getSize(composer).height, lessThanOrEqualTo(124));
     Future<void> captureMenu(String tooltip, String name) async {
       await tester.tap(find.byTooltip(tooltip));
       await tester.pumpAndSettle();
@@ -433,16 +449,27 @@ void main() {
     await settings.update(themeMode: 'dark');
     await tester.pumpAndSettle();
     await screenshot('chat-dark');
+    await englishChat('chat-dark-en');
     // The wallpaper remains visible behind the shared chat surface.
     await settings.updateAppearance(color: 'ff227799');
     await tester.pumpAndSettle();
     expect(
-      tester.widget<AppBar>(find.byType(AppBar)).backgroundColor!.a,
-      closeTo(.88, .01),
+      tester
+          .widget<Material>(
+            find
+                .descendant(
+                  of: find.byKey(const ValueKey('floating-top-bar')),
+                  matching: find.byType(Material),
+                )
+                .first,
+          )
+          .color!
+          .a,
+      closeTo(.92, .01),
     );
     final decoration =
         tester.widget<Container>(composer).decoration! as BoxDecoration;
-    expect(decoration.color!.a, closeTo(.55, .01));
+    expect(decoration.color!.a, closeTo(.82, .01));
     final bottomSurface = find.byKey(const ValueKey('chat-bottom-surface'));
     expect(tester.widget<ColoredBox>(bottomSurface).color, Colors.transparent);
     expect(tester.getBottomLeft(bottomSurface).dy, 844);
@@ -474,6 +501,11 @@ void main() {
     await tester.tap(find.text('设置'));
     await tester.pumpAndSettle();
     await screenshot('settings');
+    await settings.updateAppearance(language: 'en');
+    await tester.pumpAndSettle();
+    await screenshot('settings-en');
+    await settings.updateAppearance(language: 'zh_CN');
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('section-model')));
     await tester.pumpAndSettle();
     await screenshot('settings-model');
@@ -504,6 +536,29 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('section-appearance')));
     await tester.pumpAndSettle();
     await screenshot('settings-dark');
+    if (Platform.environment['DS_UI_CAPTURE'] == 'true') {
+      await storage.saveConversation(
+        Conversation(
+          id: 'preview',
+          messages: [
+            for (var i = 0; i < 12; i++) ...[
+              ChatMessage.user('第 ${i + 1} 个想法：怎样把灵感变成可以完成的小任务？'),
+              ChatMessage.assistant(
+                '先写下目标，再选择一个今天可以完成的步骤。\n\n保留过程中的记录，明天回看时就能找到下一步的方向。',
+              ),
+            ],
+          ],
+        ),
+      );
+      await chat.init();
+      Navigator.of(tester.element(find.byType(Scaffold).last)).pop();
+      await settings.updateAppearance(language: 'zh_CN');
+      await settings.update(themeMode: 'light');
+      await tester.pumpAndSettle();
+      await tester.dragFrom(const Offset(195, 440), const Offset(0, 170));
+      await tester.pumpAndSettle();
+      await screenshot('chat-scroll-edges');
+    }
     await tester.pumpWidget(const SizedBox());
     chat.dispose();
   });

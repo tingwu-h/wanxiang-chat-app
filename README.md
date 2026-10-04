@@ -7,18 +7,18 @@
   <p><strong>More models. More possibilities in every conversation.</strong></p>
   <p>A source-available AI chat app for Android · Choose your models · Bring your own API key</p>
   <p>
-    <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/download/v1.3.0/wanxiang-v1.3.0.apk">Download APK</a> ·
-    <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/tag/v1.3.0"><img src="https://img.shields.io/badge/version-v1.3-1677FF" alt="Version v1.3"></a>
+    <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/download/v1.3.1/wanxiang-v1.3.1.apk">Download APK</a> ·
+    <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/tag/v1.3.1"><img src="https://img.shields.io/badge/version-v1.3.1-1677FF" alt="Version v1.3.1"></a>
     <img src="https://img.shields.io/badge/Android-7.0%2B-16C9B2" alt="Android 7.0 or later">
     <img src="https://img.shields.io/badge/Built_with-Flutter-28BCEF" alt="Built with Flutter">
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-Non--Commercial-8B5CF6" alt="Non-commercial license"></a>
   </p>
   <p>
-    <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/tag/v1.3.0">v1.3 Release</a> ·
+    <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/tag/v1.3.1">v1.3.1 Release</a> ·
     <a href="#preview">Preview</a> ·
     <a href="#quick-start">Quick Start</a> ·
     <a href="#providers">Providers</a> ·
-    <a href="docs/1.3-更新说明.md">Release Notes (中文)</a>
+    <a href="docs/1.3.1-更新说明.md">Release Notes (中文)</a>
   </p>
 </div>
 
@@ -51,13 +51,13 @@ Whether you are organizing an idea, discussing code, or asking about an image, W
     <td align="center"><strong>Provider settings</strong></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/chat-light.png" alt="Wanxiang chat in light mode" width="260"></td>
-    <td><img src="docs/screenshots/chat-dark.png" alt="Wanxiang chat in dark mode" width="260"></td>
-    <td><img src="docs/screenshots/settings.png" alt="Provider and model settings" width="260"></td>
+    <td><img src="docs/screenshots/chat-light-en.png" alt="Wanxiang v1.3.1 chat in light mode" width="260"></td>
+    <td><img src="docs/screenshots/chat-dark-en.png" alt="Wanxiang v1.3.1 chat in dark mode" width="260"></td>
+    <td><img src="docs/screenshots/settings-en.png" alt="Wanxiang v1.3.1 settings" width="260"></td>
   </tr>
 </table>
 
-<sub>These previews use simulated conversations rendered by Flutter tests. They are not physical-device captures or live provider responses. The app is shown in Chinese; the README language switch changes documentation only.</sub>
+<sub>These v1.3.1 previews use simulated conversations rendered by Flutter tests. They are not physical-device captures or live provider responses. To change the app language, open Settings → Appearance.</sub>
 
 <a id="providers"></a>
 
@@ -82,7 +82,7 @@ Presets make setup easier; they do not grant access to a model. Availability dep
 
 ## Start Your First Conversation
 
-1. Visit the [v1.3 release page](https://github.com/tingwu-h/wanxiang-chat-app/releases/tag/v1.3.0) for release information and available files, or build the APK from source.
+1. Visit the [v1.3.1 release page](https://github.com/tingwu-h/wanxiang-chat-app/releases/tag/v1.3.1) for release information and available files, or build the APK from source.
 2. Open **Settings → Models & Services**, choose a provider, and enter your API key. Use **Get API Key** to open its official platform.
 3. Select a model or enter a model ID available to your account. Adjust the base URL if needed.
 4. Save your configuration. Optionally use **Test Connection**, then return to chat.
@@ -93,9 +93,9 @@ Connection tests and conversations make real API requests and may incur charges.
 <details>
 <summary><strong>Upgrading from DeepSeek Assistant</strong></summary>
 
-Version v1.3 uses build number **16**. The Android package remains `com.example.deepseek_chat`, and the original signing certificate is retained to support upgrades from earlier installations. Do not uninstall the old app just to upgrade. Physical-device upgrade and data-retention checks are still pending; export important chat text first.
+Version v1.3.1 uses build number **17**. The Android package remains `com.example.deepseek_chat`, and the original signing certificate is retained to support upgrades from earlier installations. Do not uninstall the old app just to upgrade. Physical-device upgrade and data-retention checks are still pending; export important chat text first.
 
-Some internal package names, storage keys, and platform channels retain their original names for compatibility. The public-facing brand is **Wanxiang**. Build details and APK checksums are recorded in the [release notes (中文)](docs/1.3-更新说明.md).
+Some internal package names, storage keys, and platform channels retain their original names for compatibility. The public-facing brand is **Wanxiang**. Build details and APK checksums are recorded in the [v1.3.1 release notes (中文)](docs/1.3.1-更新说明.md).
 
 </details>
 
@@ -109,7 +109,7 @@ Model labels suggest uses such as coding, reasoning, writing, or image understan
 
 ## A clearer chat layout
 
-The current conversation title appears at the top. The compact rounded composer contains the text input and a model selector beneath it. The model menu lists only your selected provider’s models in a small, scrollable window. Each model has its own rounded card with strengths below its name; a colored border and check mark identify your current choice. Provider labels offer guidance for coding, reasoning, writing, long text and vision. Choose your interface language from a bottom sheet in Appearance. Rounded menus keep actions consistent, and saving settings shows a brief confirmation. With a custom background, the top and bottom surfaces retain a soft tint to keep text and controls readable.
+The chat title is intentionally hidden to keep the reading area open. Menu and new-chat actions float above the conversation, while the rounded composer floats below it with the current provider's model selector inside. The model menu lists only that provider's models in a small, scrollable window. Each model has its own rounded card with strengths below its name; a colored border and check mark identify your current choice. Text approaching either floating edge fades and blurs gradually, so older messages remain readable while scrolling. Rounded menus keep actions consistent, and saving settings shows a brief confirmation. With a custom background, the top and bottom surfaces retain a soft tint to keep text and controls readable.
 
 ## Appearance and image tools
 
