@@ -22,6 +22,12 @@
   </p>
 </div>
 
+## Meet Wanxiang
+
+**Wanxiang** is a source-available AI chat app for Android. It brings providers such as DeepSeek, OpenAI, Kimi, and Qwen into one app, so you can choose a model that fits your question and chat with text, images, and plain-text attachments.
+
+Whether you are organizing an idea, discussing code, or asking about an image, Wanxiang keeps everyday conversations within reach: configure your providers, switch models when needed, and keep your discussions in local conversation history.
+
 <p align="center">
   <a href="docs/posters/wanxiang-poster-landscape.png"><img src="docs/posters/wanxiang-poster-landscape.png" width="100%" alt="Wanxiang brand poster in Chinese: models come together, possibilities open up. Give every idea a response."></a>
 </p>
@@ -29,12 +35,6 @@
   <a href="docs/posters/wanxiang-poster-landscape.png">Landscape poster</a> ·
   <a href="docs/posters/wanxiang-poster-portrait.png">Portrait poster</a> (Chinese)
 </p>
-
-## Meet Wanxiang
-
-**Wanxiang** is a source-available AI chat app for Android. It brings providers such as DeepSeek, OpenAI, Kimi, and Qwen into one app, so you can choose a model that fits your question and chat with text, images, and plain-text attachments.
-
-Whether you are organizing an idea, discussing code, or asking about an image, Wanxiang keeps everyday conversations within reach: configure your providers, switch models when needed, and keep your discussions in local conversation history.
 
 ## Highlights
 

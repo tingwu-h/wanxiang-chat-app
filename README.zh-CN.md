@@ -22,6 +22,12 @@
   </p>
 </div>
 
+## 项目简介
+
+**万象**是一款运行在 Android 上的源码公开的 AI 聊天助手。它将 DeepSeek、OpenAI、Kimi、Qwen 等服务商放进同一个应用，让你按照问题和习惯选择模型，用文字、图片和文本附件展开对话。
+
+从梳理一个想法、讨论一段代码，到追问图片中的细节，万象希望让这些日常对话更顺手：配置一次，随时切换，重要的讨论留在自己的会话记录里。
+
 <p align="center">
   <a href="docs/posters/wanxiang-poster-landscape.png"><img src="docs/posters/wanxiang-poster-landscape.png" width="100%" alt="万象聚合，模型无界。让每个想法，都有回响。万象品牌宣传海报。"></a>
 </p>
@@ -29,12 +35,6 @@
   <a href="docs/posters/wanxiang-poster-landscape.png">横版海报原图</a> ·
   <a href="docs/posters/wanxiang-poster-portrait.png">竖版海报原图</a>
 </p>
-
-## 项目简介
-
-**万象**是一款运行在 Android 上的源码公开的 AI 聊天助手。它将 DeepSeek、OpenAI、Kimi、Qwen 等服务商放进同一个应用，让你按照问题和习惯选择模型，用文字、图片和文本附件展开对话。
-
-从梳理一个想法、讨论一段代码，到追问图片中的细节，万象希望让这些日常对话更顺手：配置一次，随时切换，重要的讨论留在自己的会话记录里。
 
 ## 核心特点
 
