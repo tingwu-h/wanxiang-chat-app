@@ -8,7 +8,7 @@
   <p>源码公开的 Android AI 助手 · 自由选择模型 · 使用自己的 API Key</p>
   <p>
     <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/download/v1.3.0/wanxiang-v1.3.0.apk">下载 APK</a> ·
-    <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/tag/v1.3"><img src="https://img.shields.io/badge/version-v1.3-1677FF" alt="版本 v1.3"></a>
+    <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/tag/v1.3.0"><img src="https://img.shields.io/badge/version-v1.3-1677FF" alt="版本 v1.3"></a>
     <img src="https://img.shields.io/badge/Android-7.0%2B-16C9B2" alt="Android 7.0 及以上">
     <img src="https://img.shields.io/badge/Built_with-Flutter-28BCEF" alt="使用 Flutter 构建">
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-Non--Commercial-8B5CF6" alt="禁止商业使用"></a>
