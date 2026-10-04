@@ -9,7 +9,7 @@
 ///
 /// 这个值是对外显示的 Android 热修复版本；Dart pubspec 保留三段基础版本，
 /// 构建脚本和 Android Gradle 配置会将完整热修复版本写入 APK。
-const String kAppVersion = '1.2.2.2';
+const String kAppVersion = '1.3.0';
 
 /// 创作者（显示在「关于」页）
 ///

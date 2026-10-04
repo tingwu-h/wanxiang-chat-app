@@ -460,7 +460,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         constraints: BoxConstraints(
           minWidth: 112,
           maxWidth: 280,
-          maxHeight: (availableHeight * .36).clamp(96.0, 216.0),
+          // 两个模型卡片的高度刚好可见，更多模型通过上下滑动选择。
+          maxHeight: (availableHeight * .28).clamp(132.0, 168.0),
         ),
         menuPadding: const EdgeInsets.symmetric(vertical: 4),
         enabled: !chat.isLoading,

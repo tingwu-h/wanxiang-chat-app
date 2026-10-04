@@ -88,7 +88,7 @@ class _MessageListViewState extends State<MessageListView> {
 /// 空会话时的引导页。
 ///
 /// 刻意保持极简：输入框已经写着「给万象发消息…」，
-/// 屏幕中间再教一遍「怎么发消息」就是重复噪音（之前那版就是这个问题）。
+/// 屏幕中间只保留一句品牌文案。
 /// 只有「还没配 API Key」这种用户必须知道的信息才显示。
 class _EmptyHint extends StatelessWidget {
   const _EmptyHint();
@@ -105,18 +105,9 @@ class _EmptyHint extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Image.asset(
-                'assets/branding/icon.png',
-                width: 64,
-                height: 64,
-              ),
-            ),
-            const SizedBox(height: 12),
             Text(
-              tr(context, '新对话'),
-              style: Theme.of(context).textTheme.titleMedium
+              tr(context, '万象聚合，模型无界'),
+              style: Theme.of(context).textTheme.titleLarge
                   ?.copyWith(color: scheme.onSurfaceVariant),
             ),
             if (!hasApiKey) ...<Widget>[

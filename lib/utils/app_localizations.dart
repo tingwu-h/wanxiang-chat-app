@@ -128,6 +128,7 @@ const _labels = <String, (String, String)>{
     'Requires an OpenRouter API Key. Free variant with request limits; availability depends on the platform.',
   ),
   '万象': ('萬象', 'Wanxiang'),
+  '万象聚合，模型无界': ('萬象聚合，模型無界', 'Wanxiang aggregation, limitless models'),
   '设置': ('設定', 'Settings'),
   '关于': ('關於', 'About'),
   '关于万象': ('關於萬象', 'About Wanxiang'),

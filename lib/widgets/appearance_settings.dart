@@ -29,32 +29,38 @@ class _AppearanceSettingsState extends State<AppearanceSettings> {
       isScrollControlled: true,
       showDragHandle: true,
       builder: (ctx) => SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  title: Text(
-                    t('语言', '語言', 'Language'),
-                    style: Theme.of(ctx).textTheme.titleLarge,
-                  ),
-                ),
-                for (final entry in _languages.entries)
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+          child: Material(
+            color: Theme.of(ctx).colorScheme.surfaceContainer,
+            clipBehavior: Clip.antiAlias,
+            borderRadius: BorderRadius.circular(24),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   ListTile(
-                    key: ValueKey('language-option-${entry.key}'),
-                    selected: current == entry.key,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                    title: Text(
+                      t('语言', '語言', 'Language'),
+                      style: Theme.of(ctx).textTheme.titleLarge,
                     ),
-                    title: Text(entry.value),
-                    trailing: current == entry.key
-                        ? const Icon(Icons.check_rounded)
-                        : null,
-                    onTap: () => Navigator.pop(ctx, entry.key),
                   ),
-              ],
+                  for (final entry in _languages.entries)
+                    ListTile(
+                      key: ValueKey('language-option-${entry.key}'),
+                      selected: current == entry.key,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      title: Text(entry.value),
+                      trailing: current == entry.key
+                          ? const Icon(Icons.check_rounded)
+                          : null,
+                      onTap: () => Navigator.pop(ctx, entry.key),
+                    ),
+                ],
+              ),
             ),
           ),
         ),

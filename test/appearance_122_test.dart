@@ -148,7 +148,7 @@ void main() {
       await tester.pumpAndSettle();
       context = tester.element(find.byType(Scaffold).first);
       expect(MaterialLocalizations.of(context).copyButtonLabel, 'Copy');
-      expect(find.text('New chat'), findsNWidgets(2));
+      expect(find.text('New chat'), findsOneWidget);
       await tester.tap(find.byIcon(Icons.menu));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Settings'));

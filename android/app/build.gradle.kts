@@ -19,8 +19,7 @@ android {
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
-        // Public hotfix version; Dart pubspec retains its three-part format.
-        versionName = "1.2.2.2"
+        versionName = "1.3.0"
     }
 
     buildTypes {

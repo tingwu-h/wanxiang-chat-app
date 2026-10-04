@@ -95,8 +95,9 @@ void main() {
     await tester.pumpWidget(h.app);
     await tester.pumpAndSettle();
 
-    // 模型选择在顶栏；新对话提示只保留在空态。
-    expect(find.text('新对话'), findsNWidgets(2));
+    // 顶部显示会话名称，空态只保留品牌文案。
+    expect(find.text('新对话'), findsOneWidget);
+    expect(find.text('万象聚合，模型无界'), findsOneWidget);
     expect(find.text('给万象发消息…'), findsOneWidget);
     expect(find.byIcon(Icons.arrow_upward_rounded), findsOneWidget);
     // 空态不再重复教「怎么发消息」（输入框已有提示）

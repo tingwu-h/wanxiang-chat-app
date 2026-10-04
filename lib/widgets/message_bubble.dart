@@ -75,37 +75,35 @@ class _MessageBubbleState extends State<MessageBubble> {
     );
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Column(
         crossAxisAlignment: isUser
             ? CrossAxisAlignment.end
             : CrossAxisAlignment.start,
         children: <Widget>[
-          // 角色标签
-          Padding(
-            padding: const EdgeInsets.only(left: 6, right: 6, bottom: 4),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Icon(
-                  isUser ? Icons.person_outline : Icons.auto_awesome,
-                  size: 13,
-                  color: scheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  isUser
-                      ? tr(context, '我')
-                      : (message.providerId == null
-                            ? tr(context, '万象')
-                            : presetFor(message.providerId!).name),
-                  style: theme.textTheme.labelSmall?.copyWith(
+          if (!isUser)
+            Padding(
+              padding: const EdgeInsets.only(left: 6, right: 6, bottom: 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Icon(
+                    Icons.auto_awesome,
+                    size: 13,
                     color: scheme.onSurfaceVariant,
                   ),
-                ),
-              ],
+                  const SizedBox(width: 4),
+                  Text(
+                    message.providerId == null
+                        ? tr(context, '万象')
+                        : presetFor(message.providerId!).name,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
 
           // 气泡本体：限制最大宽度，长按可复制
           ConstrainedBox(
@@ -177,17 +175,19 @@ class _MessageBubbleState extends State<MessageBubble> {
                         data: message.content,
                         styleSheet: _markdownStyle(theme, textColor),
                       ),
-                    const SizedBox(height: 4),
-                    Align(
-                      alignment: Alignment.bottomRight,
-                      child: Text(
-                        formatTime(message.timestamp),
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          fontSize: 10,
-                          color: textColor.withValues(alpha: 0.72),
+                    if (!isUser) ...[
+                      const SizedBox(height: 4),
+                      Align(
+                        alignment: Alignment.bottomRight,
+                        child: Text(
+                          formatTime(message.timestamp),
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            fontSize: 10,
+                            color: textColor.withValues(alpha: 0.72),
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),

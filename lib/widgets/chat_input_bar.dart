@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:deepseek_chat/models/chat_attachment.dart';
-import 'package:deepseek_chat/theme/app_theme.dart';
 
 /// 底部输入栏：附件预览 + 多行输入框 + 发送 / 停止按钮。
 class ChatInputBar extends StatefulWidget {
@@ -96,9 +95,8 @@ class _ChatInputBarState extends State<ChatInputBar> {
 
     return ColoredBox(
       key: const ValueKey('chat-bottom-surface'),
-      color: widget.translucent
-          ? AppTheme.chatChromeColor(scheme)
-          : Theme.of(context).scaffoldBackgroundColor,
+      // 输入卡片和消息列表共享底层背景，避免底部出现割裂的色块。
+      color: Colors.transparent,
       child: SafeArea(
         top: false,
         child: Column(

@@ -433,7 +433,7 @@ void main() {
     await settings.update(themeMode: 'dark');
     await tester.pumpAndSettle();
     await screenshot('chat-dark');
-    // The wallpaper must affect both surfaces without removing their tint.
+    // The wallpaper remains visible behind the shared chat surface.
     await settings.updateAppearance(color: 'ff227799');
     await tester.pumpAndSettle();
     expect(
@@ -444,7 +444,7 @@ void main() {
         tester.widget<Container>(composer).decoration! as BoxDecoration;
     expect(decoration.color!.a, closeTo(.55, .01));
     final bottomSurface = find.byKey(const ValueKey('chat-bottom-surface'));
-    expect(tester.widget<ColoredBox>(bottomSurface).color.a, closeTo(.88, .01));
+    expect(tester.widget<ColoredBox>(bottomSurface).color, Colors.transparent);
     expect(tester.getBottomLeft(bottomSurface).dy, 844);
     final backdrop = find.byKey(const ValueKey('chat-backdrop'));
     expect(
