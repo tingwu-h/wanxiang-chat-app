@@ -1,7 +1,5 @@
 import 'package:deepseek_chat/utils/app_localizations.dart';
 
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -90,10 +88,16 @@ class _MessageListViewState extends State<MessageListView> {
           ),
           // 数据倒序绑定，index 0 显示最新一条
           itemCount: lastIndex,
+          findChildIndexCallback: (key) {
+            if (key is! ObjectKey) return null;
+            final index = messages.indexOf(key.value as ChatMessage);
+            return index < 0 ? null : lastIndex - 1 - index;
+          },
           itemBuilder: (BuildContext context, int index) {
             final int i = lastIndex - 1 - index;
             final ChatMessage message = messages[i];
             return MessageBubble(
+              key: ObjectKey(message),
               message: message,
               showTyping: typingLast && index == 0,
             );
@@ -118,8 +122,8 @@ class _MessageListViewState extends State<MessageListView> {
   }
 }
 
-/// Narrow blur bands increase toward the edge; the continuous tint hides seams.
-/// IgnorePointer lets users scroll through the unoccupied space around controls.
+/// A single continuous tint avoids blur-band seams and repeated backdrop reads.
+/// IgnorePointer keeps the edges available for scrolling.
 class _EdgeFade extends StatelessWidget {
   const _EdgeFade({required this.color, required this.top});
 
@@ -129,45 +133,21 @@ class _EdgeFade extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return IgnorePointer(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          const sigmas = <double>[.3, 1, 2.5, 5];
-          return Stack(
-            fit: StackFit.expand,
-            children: [
-              for (var band = 0; band < sigmas.length; band++)
-                Positioned(
-                  top: constraints.maxHeight * band / sigmas.length,
-                  height: constraints.maxHeight / sigmas.length,
-                  left: 0,
-                  right: 0,
-                  child: ClipRect(
-                    child: BackdropFilter(
-                      filter: ui.ImageFilter.blur(
-                        sigmaX: sigmas[top ? sigmas.length - 1 - band : band],
-                        sigmaY: sigmas[top ? sigmas.length - 1 - band : band],
-                      ),
-                      child: const SizedBox.expand(),
-                    ),
-                  ),
-                ),
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: top ? Alignment.topCenter : Alignment.bottomCenter,
-                    end: top ? Alignment.bottomCenter : Alignment.topCenter,
-                    colors: [
-                      color,
-                      color.withValues(alpha: .64),
-                      color.withValues(alpha: 0),
-                    ],
-                    stops: const [0, .48, 1],
-                  ),
-                ),
-              ),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: top ? Alignment.topCenter : Alignment.bottomCenter,
+            end: top ? Alignment.bottomCenter : Alignment.topCenter,
+            colors: [
+              color,
+              color.withValues(alpha: color.a * .84),
+              color.withValues(alpha: color.a * .5),
+              color.withValues(alpha: color.a * .16),
+              color.withValues(alpha: 0),
             ],
-          );
-        },
+            stops: const [0, .25, .5, .75, 1],
+          ),
+        ),
       ),
     );
   }

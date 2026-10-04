@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:deepseek_chat/main.dart';
 import 'package:deepseek_chat/providers/app_settings_provider.dart';
 import 'package:deepseek_chat/widgets/message_list_view.dart';
@@ -42,6 +43,42 @@ class BackProbe extends ChatProvider {
 }
 
 void main() {
+  testWidgets('streaming leaves controls and completed Markdown unchanged', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final storage = StorageService();
+    final settings = AppSettingsProvider(storage: storage);
+    await settings.init();
+    final api = ControlledApi();
+    final chat = ChatProvider(api: api, storage: storage);
+    await chat.init();
+    await tester.pumpWidget(DeepSeekChatApp(settingsProvider: settings, chatProvider: chat));
+    await tester.pumpAndSettle();
+    final request = chat.send('问题', AppSettings(apiKey: 'test'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    final controls = tester.widget(find.byKey(const ValueKey('floating-top-bar')));
+    final revision = chat.chromeRevision;
+    api.controller.add(const ChatChunk('第一部分'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 40));
+    expect(find.text('第一部分'), findsOneWidget);
+    expect(chat.chromeRevision, revision);
+    expect(identical(tester.widget(find.byKey(const ValueKey('floating-top-bar'))), controls), isTrue);
+    api.controller.add(const ChatChunk('，第二部分'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 40));
+    expect(find.text('第一部分，第二部分'), findsOneWidget);
+    await api.controller.close();
+    await tester.pumpAndSettle();
+    await request;
+    final markdown = tester.widget<MarkdownBody>(find.byType(MarkdownBody));
+    chat.notifyListeners();
+    await tester.pump();
+    expect(identical(tester.widget<MarkdownBody>(find.byType(MarkdownBody)), markdown), isTrue);
+    await tester.pumpWidget(const SizedBox());
+    chat.dispose();
+  });
+
   testWidgets('first back prompts, second back within two seconds exits once', (
     tester,
   ) async {

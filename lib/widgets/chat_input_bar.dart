@@ -116,9 +116,9 @@ class _ChatInputBarState extends State<ChatInputBar> {
                 ),
                 boxShadow: <BoxShadow>[
                   BoxShadow(
-                    color: scheme.shadow.withValues(alpha: .16),
-                    blurRadius: 20,
-                    offset: const Offset(0, 7),
+                    color: scheme.shadow.withValues(alpha: .08),
+                    blurRadius: 14,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),

@@ -28,7 +28,7 @@ if ($LASTEXITCODE -ne 0 -or ($certificate -join "`n") -notmatch '566bba04384837a
     throw 'Signing identity differs from v1.1.6. Use the original signing environment for in-place upgrades.'
 }
 New-Item -ItemType Directory -Path (Join-Path $projectRoot 'dist') -Force | Out-Null
-$output = Join-Path $projectRoot 'dist/wanxiang-v1.3.1.apk'
+$output = Join-Path $projectRoot 'dist/wanxiang-v1.3.2.apk'
 Copy-Item -LiteralPath $apk -Destination $output -Force
 Get-FileHash -LiteralPath $output -Algorithm SHA256
 Write-Output "Build and verification complete: $output"

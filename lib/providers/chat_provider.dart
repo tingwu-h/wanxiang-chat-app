@@ -33,6 +33,10 @@ class ChatProvider extends ChangeNotifier {
   Completer<void>? _requestDone;
   Timer? _checkpoint;
   bool _disposed = false;
+  int _chromeRevision = 0;
+
+  /// Structural/status changes rebuild controls; stream chunks only update messages.
+  int get chromeRevision => _chromeRevision;
 
   void _cancelRequest() {
     _activeToken++;
@@ -49,7 +53,10 @@ class ChatProvider extends ChangeNotifier {
 
   @override
   void notifyListeners() {
-    if (!_disposed) super.notifyListeners();
+    if (!_disposed) {
+      _chromeRevision++;
+      super.notifyListeners();
+    }
   }
 
   @override
@@ -260,7 +267,7 @@ class ChatProvider extends ChangeNotifier {
       pendingNotify = true;
       notifier = Timer(const Duration(milliseconds: 32), () {
         pendingNotify = false;
-        notifyListeners();
+        if (!_disposed && token == _activeToken) super.notifyListeners();
       });
     }
 

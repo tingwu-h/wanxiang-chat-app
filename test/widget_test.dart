@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,6 +13,8 @@ import 'package:deepseek_chat/providers/app_settings_provider.dart';
 import 'package:deepseek_chat/providers/chat_provider.dart';
 import 'package:deepseek_chat/services/deepseek_service.dart';
 import 'package:deepseek_chat/services/storage_service.dart';
+import 'package:deepseek_chat/services/platform_service.dart';
+import 'package:deepseek_chat/models/chat_attachment.dart';
 import 'package:deepseek_chat/widgets/message_bubble.dart';
 import 'package:deepseek_chat/widgets/message_list_view.dart';
 
@@ -92,6 +95,48 @@ class _Harness {
 }
 
 void main() {
+  testWidgets('menu exports only current text and handles cancel, failure and retry', (tester) async {
+    final h = await _buildHarness();
+    await h.chat.send('另一段私密对话', h.settings.settings);
+    await h.chat.newConversation();
+    await h.chat.send('当前问题', h.settings.settings);
+    h.chat.messages.first.attachments.add(ChatAttachment(name: 'photo.png', path: '/private/photo.png', kind: 'image'));
+    final oldBackend = PlatformService.backend;
+    PlatformService.backend = AndroidPlatformBackend();
+    addTearDown(() => PlatformService.backend = oldBackend);
+    String? exported;
+    var outcome = 0;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(PlatformService.channel, (call) async {
+      expect(call.method, 'exportChatText');
+      exported = call.arguments as String;
+      if (outcome == 1) throw PlatformException(code: 'EXPORT_FAILED');
+      return outcome == 2;
+    });
+    addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(PlatformService.channel, null));
+    await tester.pumpWidget(h.app);
+    await tester.pumpAndSettle();
+    for (outcome = 0; outcome < 3; outcome++) {
+      await tester.tap(find.byTooltip('对话操作'));
+      await tester.pumpAndSettle();
+      expect(find.text('新建对话'), findsNothing);
+      await tester.tap(find.text('导出聊天文字'));
+      await tester.pumpAndSettle();
+      final expected = <String>[
+        '已取消导出',
+        '导出失败，请重新选择保存位置。',
+        '聊天文字已导出，图片文件不包含在内。',
+      ][outcome];
+      expect(find.text(expected), findsOneWidget);
+    }
+    expect(exported, contains('当前问题'));
+    expect(exported, contains('你好，世界'));
+    expect(exported, contains('photo.png'));
+    expect(exported, isNot(contains('另一段私密对话')));
+    expect(exported, isNot(contains('/private/')));
+    expect(exported, isNot(contains('sk-test-key')));
+    expect(h.chat.messages.length, 2);
+  });
+
   testWidgets(
     'floating composer reserves space as typing grows; history scrolls',
     (tester) async {
@@ -150,7 +195,7 @@ void main() {
     expect(find.textContaining('在下面输入问题'), findsNothing);
   });
 
-  testWidgets('⋮ 菜单包含新建与清空，停止生成保留在输入栏', (WidgetTester tester) async {
+  testWidgets('⋮ 菜单包含导出与清空，空对话不可导出', (WidgetTester tester) async {
     final _Harness h = await _buildHarness();
     await tester.pumpWidget(h.app);
     await tester.pumpAndSettle();
@@ -158,7 +203,10 @@ void main() {
     await tester.tap(find.byIcon(Icons.more_vert));
     await tester.pumpAndSettle();
 
-    expect(find.text('新建对话'), findsOneWidget);
+    expect(find.text('新建对话'), findsNothing);
+    expect(find.text('导出聊天文字'), findsOneWidget);
+    final export = tester.widget<PopupMenuItem<String>>(find.byWidgetPredicate((w) => w is PopupMenuItem<String> && w.value == 'export'));
+    expect(export.enabled, isFalse);
     expect(find.text('清空当前对话'), findsOneWidget);
     // 停止生成不该出现在菜单里——它已经集成在发送按钮上（生成时变 ⏹）
     expect(find.text('停止生成'), findsNothing);
@@ -189,7 +237,7 @@ void main() {
     expect(find.text('设置'), findsOneWidget);
   });
 
-  testWidgets('更多菜单可以新建对话，并保留原会话', (WidgetTester tester) async {
+  testWidgets('顶部按钮可以新建对话，并保留原会话', (WidgetTester tester) async {
     final _Harness h = await _buildHarness();
     await tester.pumpWidget(h.app);
     await tester.pumpAndSettle();
@@ -207,9 +255,7 @@ void main() {
     final String? firstId = h.chat.activeConversationId;
 
     expect(find.byIcon(Icons.add_comment_outlined), findsNothing);
-    await tester.tap(find.byIcon(Icons.more_vert));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('新建对话'));
+    await tester.tap(find.byTooltip('新建对话'));
     await tester.pumpAndSettle();
 
     // 新会话应为空，且 id 变了
@@ -503,9 +549,7 @@ void main() {
       expect(h.chat.messages.length, 2);
       expect(h.chat.isLoading, isFalse);
       final original = h.chat.activeConversationId;
-      await tester.tap(find.byIcon(Icons.more_vert));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('新建对话'));
+      await tester.tap(find.byTooltip('新建对话'));
       await tester.pumpAndSettle();
       final target = h.chat.activeConversationId;
       expect(target, isNot(original));

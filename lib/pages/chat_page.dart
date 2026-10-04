@@ -34,6 +34,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   final AttachmentService _attachments = AttachmentService();
   final GlobalKey _composerKey = GlobalKey();
   double _composerHeight = 140;
+  bool _composerMeasurementPending = false;
+  bool _exporting = false;
 
   /// 已选、还没发出去的附件
   final List<ChatAttachment> _pending = <ChatAttachment>[];
@@ -47,6 +49,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _measureComposer();
   }
 
   @override
@@ -207,6 +210,32 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     await _clearPending();
   }
 
+  Future<void> _exportCurrentConversation() async {
+    if (_exporting) return;
+    final chat = context.read<ChatProvider>();
+    if (!chat.hasMessages) return;
+    // Capture this conversation before opening Android's save picker.
+    final text = StringBuffer('${chat.activeTitle}\n\n');
+    for (final message in chat.messages) {
+      text.writeln('${message.isUser ? tr(context, '我') : tr(context, '万象')} · ${message.timestamp.toIso8601String()}');
+      if (message.hasThinking) text.writeln('${tr(context, '思考过程')}\n${message.thinking}\n');
+      text.writeln(message.content);
+      for (final attachment in message.attachments) {
+        text.writeln('[${attachment.name}]');
+      }
+      text.writeln();
+    }
+    setState(() => _exporting = true);
+    try {
+      final saved = await PlatformService.exportChatText(text.toString());
+      if (mounted) _showSnack(tr(context, saved ? '聊天文字已导出，图片文件不包含在内。' : '已取消导出'));
+    } catch (_) {
+      if (mounted) _showSnack(tr(context, '导出失败，请重新选择保存位置。'));
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
   Future<void> _openSettings() async {
     final chat = context.read<ChatProvider>();
     await chat.stopAndPersist();
@@ -265,7 +294,10 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   // -------------------------------------------------------------- 构建
 
   void _measureComposer() {
+    if (_composerMeasurementPending) return;
+    _composerMeasurementPending = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _composerMeasurementPending = false;
       if (!mounted) return;
       final box = _composerKey.currentContext?.findRenderObject() as RenderBox?;
       if (box != null &&
@@ -278,7 +310,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final ChatProvider chat = context.watch<ChatProvider>();
+    context.select<ChatProvider, int>((chat) => chat.chromeRevision);
+    final ChatProvider chat = context.read<ChatProvider>();
     final AppSettingsProvider settings = context.watch<AppSettingsProvider>();
     final scheme = Theme.of(context).colorScheme;
     final appearance = settings.settings;
@@ -301,7 +334,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
             );
 
     _maybeShowError(chat);
-    _measureComposer();
 
     return PopScope(
       // 正在生成时先拦一次返回：中断流式请求并保留已收到的内容，然后再退出
@@ -375,18 +407,21 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 child: Stack(
                   fit: StackFit.expand,
                   children: <Widget>[
-                    MessageListView(
-                      messages: chat.messages,
-                      isLoading: chat.isLoading,
-                      topPadding: 88,
-                      bottomPadding: _composerHeight + 12,
-                      edgeColor: customBackground ? scheme.surface : null,
+                    Consumer<ChatProvider>(
+                      builder: (context, messages, _) => MessageListView(
+                        key: ValueKey(messages.activeConversationId),
+                        messages: messages.messages,
+                        isLoading: messages.isLoading,
+                        topPadding: 88,
+                        bottomPadding: _composerHeight + 12,
+                        edgeColor: customBackground ? scheme.surface.withValues(alpha: .8) : null,
+                      ),
                     ),
                     Positioned(
                       top: 8,
                       left: 16,
                       right: 16,
-                      child: _buildFloatingTopBar(chat),
+                      child: RepaintBoundary(child: _buildFloatingTopBar(chat)),
                     ),
                     Align(
                       alignment: Alignment.bottomCenter,
@@ -430,8 +465,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     Widget capsule(Widget child) => Material(
       color: scheme.surface.withValues(alpha: .92),
-      elevation: 5,
-      shadowColor: scheme.shadow.withValues(alpha: .18),
+      elevation: 1,
+      shadowColor: scheme.shadow.withValues(alpha: .08),
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(28),
@@ -465,18 +500,19 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                   clipBehavior: Clip.antiAlias,
                   tooltip: tr(context, '对话操作'),
                   onSelected: (String value) {
-                    if (value == 'new') _newConversation();
+                    if (value == 'export') _exportCurrentConversation();
                     if (value == 'clear') _confirmClearCurrent();
                   },
                   itemBuilder: (BuildContext context) =>
                       <PopupMenuEntry<String>>[
                         PopupMenuItem<String>(
-                          value: 'new',
+                          value: 'export',
+                          enabled: chat.hasMessages && !_exporting,
                           child: ListTile(
                             dense: true,
                             contentPadding: EdgeInsets.zero,
-                            leading: const Icon(Icons.add_comment_outlined),
-                            title: Text(tr(context, '新建对话')),
+                            leading: const Icon(Icons.file_download_outlined),
+                            title: Text(tr(context, _exporting ? '正在导出…' : '导出聊天文字')),
                           ),
                         ),
                         PopupMenuItem<String>(

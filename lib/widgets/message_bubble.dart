@@ -39,6 +39,20 @@ class _MessageBubbleState extends State<MessageBubble> {
   bool _userToggledThinking = false;
 
   ChatMessage get message => widget.message;
+  (String, ThemeData, Color)? _markdownInputs;
+  Widget? _markdown;
+
+  Widget _completedMarkdown(ThemeData theme, Color color) {
+    final inputs = (message.content, theme, color);
+    if (_markdownInputs != inputs) {
+      _markdownInputs = inputs;
+      _markdown = MarkdownBody(
+        data: message.content,
+        styleSheet: _markdownStyle(theme, color),
+      );
+    }
+    return _markdown!;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -171,10 +185,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                         ),
                       )
                     else
-                      MarkdownBody(
-                        data: message.content,
-                        styleSheet: _markdownStyle(theme, textColor),
-                      ),
+                      _completedMarkdown(theme, textColor),
                     if (!isUser) ...[
                       const SizedBox(height: 4),
                       Align(

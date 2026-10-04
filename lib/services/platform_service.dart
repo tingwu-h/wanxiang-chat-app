@@ -7,6 +7,7 @@ abstract interface class PlatformBackend {
   Future<String?> readKey();
   Future<void> writeKey(String value);
   Future<bool> exportHistory(String json);
+  Future<bool> exportChatText(String text);
   Future<void> goToDesktop();
 }
 
@@ -20,6 +21,9 @@ class AndroidPlatformBackend implements PlatformBackend {
   @override
   Future<bool> exportHistory(String json) async =>
       await channel.invokeMethod<bool>('exportHistory', json) ?? false;
+  @override
+  Future<bool> exportChatText(String text) async =>
+      await channel.invokeMethod<bool>('exportChatText', text) ?? false;
   @override
   Future<void> goToDesktop() => channel.invokeMethod<void>('goToDesktop');
 }
@@ -38,6 +42,9 @@ class SessionPlatformBackend implements PlatformBackend {
   Future<bool> exportHistory(String json) async =>
       throw UnsupportedError('当前平台尚未实现导出');
   @override
+  Future<bool> exportChatText(String text) async =>
+      throw UnsupportedError('当前平台尚未实现导出');
+  @override
   Future<void> goToDesktop() async => SystemNavigator.pop();
 }
 
@@ -49,5 +56,6 @@ class PlatformService {
   static Future<String?> readKey() => backend.readKey();
   static Future<void> writeKey(String value) => backend.writeKey(value);
   static Future<bool> exportHistory(String json) => backend.exportHistory(json);
+  static Future<bool> exportChatText(String text) => backend.exportChatText(text);
   static Future<void> goToDesktop() => backend.goToDesktop();
 }

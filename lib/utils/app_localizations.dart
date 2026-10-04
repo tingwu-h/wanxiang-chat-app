@@ -192,6 +192,7 @@ const _labels = <String, (String, String)>{
   '停止生成': ('停止生成', 'Stop generating'),
   '发送': ('傳送', 'Send'),
   '我': ('我', 'You'),
+  '思考过程': ('思考過程', 'Reasoning'),
   '正在生成回答': ('正在生成回覆', 'Generating response'),
   '已复制这条消息': ('已複製此訊息', 'Message copied'),
   '复制': ('複製', 'Copy'),

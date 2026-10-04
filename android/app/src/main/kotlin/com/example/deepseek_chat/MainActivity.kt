@@ -52,7 +52,7 @@ class MainActivity : FlutterActivity() {
                         "readKey" -> result.success(readKey())
                         "writeKey" -> { writeKey(call.arguments as String); result.success(null) }
                         "goToDesktop" -> { moveTaskToBack(true); result.success(null) }
-                        "exportHistory" -> {
+                        "exportHistory", "exportChatText" -> {
                             if (exportResult != null) {
                                 result.error("BUSY", "请先完成当前导出", null)
                             } else {
@@ -60,8 +60,11 @@ class MainActivity : FlutterActivity() {
                                 exportResult = result
                                 val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
                                     addCategory(Intent.CATEGORY_OPENABLE)
-                                    type = "application/json"
-                                    putExtra(Intent.EXTRA_TITLE, "Wanxiang-history-${System.currentTimeMillis()}.json")
+                                    val plainText = call.method == "exportChatText"
+                                    type = if (plainText) "text/plain" else "application/json"
+                                    val extension = if (plainText) "txt" else "json"
+                                    val prefix = if (plainText) "Wanxiang-chat" else "Wanxiang-history"
+                                    putExtra(Intent.EXTRA_TITLE, "$prefix-${System.currentTimeMillis()}.$extension")
                                 }
                                 startActivityForResult(intent, 117)
                             }
@@ -69,7 +72,7 @@ class MainActivity : FlutterActivity() {
                         else -> result.notImplemented()
                     }
                 } catch (e: Exception) {
-                    if (call.method == "exportHistory") { exportResult = null; exportText = null }
+                    if (call.method == "exportHistory" || call.method == "exportChatText") { exportResult = null; exportText = null }
                     result.error("LOCAL_STORAGE", "本机安全存储或文件操作失败，请重试", null)
                 }
             }
