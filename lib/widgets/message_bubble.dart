@@ -17,7 +17,7 @@ import 'package:deepseek_chat/utils/app_localizations.dart';
 
 /// 单条聊天气泡：用户消息靠右，助手消息靠左。
 ///
-/// 需要是 StatefulWidget：思考过程的展开/收起、以及「选取文本」模式
+/// 需要是 StatefulWidget：思考过程的展开/收起、以及当前选中的文字
 /// 都是每条气泡自己的界面状态。
 class MessageBubble extends StatefulWidget {
   const MessageBubble({
@@ -54,9 +54,6 @@ class _MessageBubbleState extends State<MessageBubble> {
 
   /// 一旦用户手动点过开关，就不再自动展开/收起，免得跟用户抢
   bool _userToggledThinking = false;
-
-  /// 「选取文本」模式：正文变成可自由框选的文本
-  bool _selectionMode = false;
 
   /// 当前选中的文字（由 onSelectionChanged 维护）
   String _selectedText = '';
@@ -152,7 +149,7 @@ class _MessageBubbleState extends State<MessageBubble> {
               ),
             ),
 
-          // 气泡本体：限制最大宽度。长按弹出操作菜单（复制 / 选取文本）
+          // 气泡本体：限制最大宽度。长按选中文字后弹出操作菜单
           ConstrainedBox(
             constraints: BoxConstraints(
               maxWidth: MediaQuery.sizeOf(context).width * 0.80,
@@ -177,7 +174,7 @@ class _MessageBubbleState extends State<MessageBubble> {
               // 气泡里有可选中文本时，长按手势会被文本选择机制抢走，
               // 外层 GestureDetector 根本收不到（实测确认过）。
               // SelectionArea 本来就是「长按选中 → 弹菜单」的正规机制，
-              // 这里用它的自定义菜单承载「复制 / 选取文本」两项。
+              // 这里用它的自定义菜单承载「复制选中 / 追问 / 复制全文」。
               child: SelectionArea(
                 onSelectionChanged: (SelectedContent? content) {
                   _selectedText = _selectedFromContent(content);
@@ -296,12 +293,10 @@ class _MessageBubbleState extends State<MessageBubble> {
     if (isUser || isError) {
       return <Widget>[Text(message.content, style: style)];
     }
-    if (widget.showTyping || _selectionMode) {
+    if (widget.showTyping) {
       // 流式输出期间先用纯文本渲染：
       // MarkdownBody 每来一个字都要重新解析整段内容，回答越长越慢。
-      //
-      // 用户点了「选取文本」时也走这里：Markdown 渲染出来的文字
-      // 在 SelectionArea 里无法选中，换成纯文本才能自由框选。
+      // 回答完成后换成 Markdown 排版（见下面）。
       return <Widget>[Text(message.content, style: style)];
     }
     return <Widget>[_completedMarkdown(theme, textColor)];
@@ -353,19 +348,6 @@ class _MessageBubbleState extends State<MessageBubble> {
             _copyText(context, message.content, tr(context, '已复制这条消息'));
           },
         ),
-        // Markdown 渲染出来的文字在 SelectionArea 里选不了，
-        // 想逐字框选就切到纯文本模式——这就是「选取文本」这一项的作用。
-        if (!message.isUser && !_selectionMode && message.content.isNotEmpty)
-          ContextMenuButtonItem(
-            label: tr(context, '选取文本'),
-            onPressed: () {
-              ContextMenuController.removeAny();
-              setState(() {
-                _selectionMode = true;
-                _selectedText = '';
-              });
-            },
-          ),
       ],
     );
   }

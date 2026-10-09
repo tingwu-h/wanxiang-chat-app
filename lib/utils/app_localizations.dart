@@ -278,14 +278,12 @@ const _labels = <String, (String, String)>{
   '（空回复）': ('（空回覆）', '(Empty reply)'),
   '已取消导出': ('已取消匯出', 'Export cancelled'),
 
-  // ---------- v1.3.3：长按菜单、选取文本、追问、气泡透明度 ----------
+  // ---------- v1.3.3：长按选取文字、追问引用、气泡透明度 ----------
   // 注意：'复制' 与 '已复制这条消息' 项目里原本就有（见上方 197-198 行），
   // 这里不要重复定义，否则 const map 会报 equal_keys_in_const_map。
-  '选取文本': ('選取文字', 'Select text'),
   '复制当前选中文本': ('複製目前選取的文字', 'Copy selected text'),
   '复制全文': ('複製全文', 'Copy whole message'),
   '追问': ('追問', 'Follow up'),
-  '取消选取': ('取消選取', 'Cancel selection'),
   '已复制选中文字': ('已複製選取的文字', 'Selected text copied'),
   '引用': ('引用', 'Quote'),
   '清除引用': ('清除引用', 'Clear quote'),
