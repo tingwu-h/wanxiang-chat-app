@@ -3,6 +3,7 @@ import 'package:deepseek_chat/utils/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:deepseek_chat/models/app_settings.dart';
 import 'package:deepseek_chat/models/chat_message.dart';
 import 'package:deepseek_chat/providers/app_settings_provider.dart';
 import 'package:deepseek_chat/widgets/message_bubble.dart';
@@ -19,6 +20,9 @@ class MessageListView extends StatefulWidget {
     this.topPadding = 8,
     this.bottomPadding = 12,
     this.edgeColor,
+    this.onFollowUp,
+    this.bubbleOpacity = AppSettings.defaultBubbleOpacity,
+    this.frosted = false,
   });
 
   final List<ChatMessage> messages;
@@ -26,6 +30,18 @@ class MessageListView extends StatefulWidget {
   final double topPadding;
   final double bottomPadding;
   final Color? edgeColor;
+
+  /// 点气泡里的「追问」时，把选中的文字交给聊天页填进输入框
+  final ValueChanged<String>? onFollowUp;
+
+  /// 气泡不透明度，由聊天页从设置里读出来传进来。
+  ///
+  /// 刻意不在这里直接 watch AppSettingsProvider：
+  /// 那样会让这个组件必须有 Provider 祖先，单元测试单独构造它就崩了。
+  final double bubbleOpacity;
+
+  /// 是否给气泡加磨砂玻璃（只在实际有自定义背景时才值得开）
+  final bool frosted;
 
   @override
   State<MessageListView> createState() => _MessageListViewState();
@@ -100,6 +116,9 @@ class _MessageListViewState extends State<MessageListView> {
               key: ObjectKey(message),
               message: message,
               showTyping: typingLast && index == 0,
+              bubbleOpacity: widget.bubbleOpacity,
+              frosted: widget.frosted,
+              onFollowUp: widget.onFollowUp,
             );
           },
         ),

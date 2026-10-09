@@ -17,10 +17,19 @@ class AppSettings {
     this.language = 'zh_CN',
     this.chatBackgroundColor = '',
     this.chatBackgroundImage = '',
+    this.bubbleOpacity = defaultBubbleOpacity,
   });
 
   /// DeepSeek 官方 API 基地址
   static const String defaultBaseUrl = 'https://api.deepseek.com';
+
+  /// 聊天气泡不透明度的默认值与可选范围。
+  ///
+  /// 气泡改成磨砂玻璃后半透明，用户自定义的背景图才不会被消息盖住；
+  /// 但文字可读性优先，所以下限不给到全透明。
+  static const double defaultBubbleOpacity = 0.8;
+  static const double minBubbleOpacity = 0.3;
+  static const double maxBubbleOpacity = 1.0;
 
   /// 默认模型。
   ///
@@ -123,6 +132,9 @@ class AppSettings {
   final String chatBackgroundColor;
   final String chatBackgroundImage;
 
+  /// 聊天气泡的不透明度（0.3 ~ 1.0）。越透明越能看见自定义背景。
+  final double bubbleOpacity;
+
   bool get hasApiKey => apiKey.trim().isNotEmpty;
 
   /// 只用于界面展示，避免完整 Key 出现在截图里
@@ -148,6 +160,7 @@ class AppSettings {
     String? language,
     String? chatBackgroundColor,
     String? chatBackgroundImage,
+    double? bubbleOpacity,
   }) {
     return AppSettings(
       savedModels: {
@@ -170,6 +183,7 @@ class AppSettings {
       language: language ?? this.language,
       chatBackgroundColor: chatBackgroundColor ?? this.chatBackgroundColor,
       chatBackgroundImage: chatBackgroundImage ?? this.chatBackgroundImage,
+      bubbleOpacity: bubbleOpacity ?? this.bubbleOpacity,
     );
   }
 
@@ -188,6 +202,7 @@ class AppSettings {
     'language': language,
     'chatBackgroundColor': chatBackgroundColor,
     'chatBackgroundImage': chatBackgroundImage,
+    'bubbleOpacity': bubbleOpacity,
   };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
@@ -210,6 +225,15 @@ class AppSettings {
           : 'zh_CN',
       chatBackgroundColor: json['chatBackgroundColor'] as String? ?? '',
       chatBackgroundImage: json['chatBackgroundImage'] as String? ?? '',
+      // 越界或缺失都回落到默认值，避免旧数据把气泡弄成全透明
+      bubbleOpacity: _clampOpacity(json['bubbleOpacity']),
     );
+  }
+
+  /// 把持久化读到的值夹到合法范围；非法/缺失用默认值。
+  static double _clampOpacity(Object? raw) {
+    final double? v = (raw as num?)?.toDouble();
+    if (v == null || v.isNaN) return defaultBubbleOpacity;
+    return v.clamp(minBubbleOpacity, maxBubbleOpacity);
   }
 }

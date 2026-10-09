@@ -80,11 +80,13 @@ class AppSettingsProvider extends ChangeNotifier {
     String? language,
     String? color,
     String? image,
+    double? bubbleOpacity,
   }) => replace(
     _settings.copyWith(
       language: language,
       chatBackgroundColor: color,
       chatBackgroundImage: image,
+      bubbleOpacity: bubbleOpacity,
     ),
   );
 

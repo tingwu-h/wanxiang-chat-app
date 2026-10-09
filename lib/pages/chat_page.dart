@@ -40,6 +40,11 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   /// 已选、还没发出去的附件
   final List<ChatAttachment> _pending = <ChatAttachment>[];
 
+  /// 从气泡「追问」引用过来的文字。
+  ///
+  /// 发送时会拼成 Markdown 引用块放在用户问题前面，发送后自动清空。
+  String _quotedText = '';
+
   String? _shownError;
   Timer? _backTimer;
   bool _backArmed = false;
@@ -118,7 +123,9 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       _openSettings();
       return false;
     }
-    if (text.trim().isEmpty && _pending.isEmpty) return false;
+    if (text.trim().isEmpty && _pending.isEmpty && _quotedText.trim().isEmpty) {
+      return false;
+    }
     if (!settings.settings.supportsImages &&
         (_pending.any((a) => a.isImage) ||
             chat.messages.any((m) => m.attachments.any((a) => a.isImage)))) {
@@ -126,15 +133,36 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       return false;
     }
 
+    // 引用的选中文字拼成 Markdown 引用块放在问题前面：
+    // 模型能分清哪段是被追问的原文，界面里显示成引用样式也不突兀。
+    final String quoted = _quotedText.trim();
+    final String outgoing = quoted.isEmpty
+        ? text
+        : '> ${quoted.replaceAll('\n', '\n> ')}\n\n$text';
+
     final List<ChatAttachment> sending = List<ChatAttachment>.from(_pending);
-    setState(_pending.clear);
+    setState(() {
+      _pending.clear();
+      _quotedText = '';
+    });
 
     // 故意不 await：让界面立刻回到可输入状态，内容由流式回调驱动刷新
-    unawaited(chat.send(text, settings.settings, attachments: sending));
+    unawaited(chat.send(outgoing, settings.settings, attachments: sending));
     return true;
   }
 
   // -------------------------------------------------------------- 附件
+
+  /// 气泡里点了「追问」：把选中的文字作为引用放到输入框上方。
+  ///
+  /// 这里只引用、不直接发送——用户还要自己写问题，
+  /// 所以发送动作仍由 [ChatInputBar] 的发送按钮触发。
+  void _applyFollowUp(String selected) {
+    final String text = selected.trim();
+    if (text.isEmpty) return;
+    setState(() => _quotedText = text);
+    _showSnack(tr(context, '已引用选中文字，输入问题后发送'));
+  }
 
   Future<void> _pickImages() async {
     try {
@@ -415,6 +443,11 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                         topPadding: 88,
                         bottomPadding: _composerHeight + 12,
                         edgeColor: customBackground ? scheme.surface.withValues(alpha: .8) : null,
+                        onFollowUp: _applyFollowUp,
+                        bubbleOpacity: appearance.bubbleOpacity,
+                        // 没有自定义背景就没有东西可透，
+                        // 开磨砂只会白白增加每帧的 GPU 开销。
+                        frosted: customBackground,
                       ),
                     ),
                     Positioned(
@@ -442,6 +475,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                                 isLoading: chat.isLoading,
                                 enabled: settings.hasApiKey,
                                 attachments: _pending,
+                                quotedText: _quotedText,
+                                onClearQuote: () => setState(() => _quotedText = ''),
                                 onSend: _handleSend,
                                 onStop: chat.stop,
                                 onPickImages: _pickImages,

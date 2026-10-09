@@ -1,11 +1,14 @@
 import 'package:deepseek_chat/models/provider_catalog.dart';
 
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
+import 'package:deepseek_chat/models/app_settings.dart';
 import 'package:deepseek_chat/models/chat_attachment.dart';
 import 'package:deepseek_chat/models/chat_message.dart';
 import 'package:deepseek_chat/utils/formatters.dart';
@@ -14,18 +17,32 @@ import 'package:deepseek_chat/utils/app_localizations.dart';
 
 /// 单条聊天气泡：用户消息靠右，助手消息靠左。
 ///
-/// 需要是 StatefulWidget：思考过程的展开/收起是每条气泡自己的界面状态。
+/// 需要是 StatefulWidget：思考过程的展开/收起、以及「选取文本」模式
+/// 都是每条气泡自己的界面状态。
 class MessageBubble extends StatefulWidget {
   const MessageBubble({
     super.key,
     required this.message,
     this.showTyping = false,
+    this.bubbleOpacity = AppSettings.defaultBubbleOpacity,
+    this.frosted = true,
+    this.onFollowUp,
   });
 
   final ChatMessage message;
 
   /// 助手消息还没有任何内容时，显示跳动圆点
   final bool showTyping;
+
+  /// 气泡不透明度（0.3 ~ 1.0），来自用户设置
+  final double bubbleOpacity;
+
+  /// 是否启用磨砂玻璃。没设自定义背景时为 false——没有背景可透，
+  /// 白白付 BackdropFilter 的开销不值当（项目历史上卡顿过）。
+  final bool frosted;
+
+  /// 点「追问」时把选中的文字交给聊天页，由它放进输入框
+  final ValueChanged<String>? onFollowUp;
 
   @override
   State<MessageBubble> createState() => _MessageBubbleState();
@@ -37,6 +54,12 @@ class _MessageBubbleState extends State<MessageBubble> {
 
   /// 一旦用户手动点过开关，就不再自动展开/收起，免得跟用户抢
   bool _userToggledThinking = false;
+
+  /// 「选取文本」模式：正文变成可自由框选的文本
+  bool _selectionMode = false;
+
+  /// 当前选中的文字（由 onSelectionChanged 维护）
+  String _selectedText = '';
 
   ChatMessage get message => widget.message;
   (String, ThemeData, Color)? _markdownInputs;
@@ -54,6 +77,14 @@ class _MessageBubbleState extends State<MessageBubble> {
     return _markdown!;
   }
 
+  /// 把不透明度应用到气泡底色。
+  ///
+  /// 只降透明度不加模糊的话，后面的背景会"透"上来干扰文字，
+  /// 所以真正启用磨砂时由 frostedBubble 再叠一层模糊。
+  Color _applyOpacity(Color base) =>
+      base.withValues(alpha: base.a * widget.bubbleOpacity);
+
+
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
@@ -69,11 +100,13 @@ class _MessageBubbleState extends State<MessageBubble> {
         !_userToggledThinking;
     final bool thinkingOpen = _thinkingExpanded || autoExpanded;
 
-    final Color bubbleColor = isError
-        ? scheme.errorContainer
-        : isUser
-        ? scheme.primary
-        : scheme.surfaceContainerLowest;
+    final Color bubbleColor = _applyOpacity(
+      isError
+          ? scheme.errorContainer
+          : isUser
+          ? scheme.primary
+          : scheme.surfaceContainerLowest,
+    );
 
     final Color textColor = isError
         ? scheme.onErrorContainer
@@ -119,31 +152,37 @@ class _MessageBubbleState extends State<MessageBubble> {
               ),
             ),
 
-          // 气泡本体：限制最大宽度，长按可复制
+          // 气泡本体：限制最大宽度。长按弹出操作菜单（复制 / 选取文本）
           ConstrainedBox(
             constraints: BoxConstraints(
               maxWidth: MediaQuery.sizeOf(context).width * 0.80,
             ),
-            child: GestureDetector(
-              onLongPress: () => _copy(context),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: bubbleColor,
-                  borderRadius: radius,
-                  border: isError
-                      ? Border.all(color: scheme.error.withValues(alpha: 0.5))
-                      : (!isUser
-                            ? Border.all(
-                                color: scheme.outlineVariant.withValues(
-                                  alpha: 0.4,
-                                ),
-                              )
-                            : null),
-                ),
+            child: _frostedBubble(
+              color: bubbleColor,
+              radius: radius,
+              border: isError
+                  ? Border.all(
+                      color: _applyOpacity(
+                        scheme.error.withValues(alpha: 0.5),
+                      ),
+                    )
+                  : (!isUser
+                        ? Border.all(
+                            color: _applyOpacity(
+                              scheme.outlineVariant.withValues(alpha: 0.4),
+                            ),
+                          )
+                        : null),
+              // 用 SelectionArea 而不是 GestureDetector.onLongPress：
+              // 气泡里有可选中文本时，长按手势会被文本选择机制抢走，
+              // 外层 GestureDetector 根本收不到（实测确认过）。
+              // SelectionArea 本来就是「长按选中 → 弹菜单」的正规机制，
+              // 这里用它的自定义菜单承载「复制 / 选取文本」两项。
+              child: SelectionArea(
+                onSelectionChanged: (SelectedContent? content) {
+                  _selectedText = _selectedFromContent(content);
+                },
+                contextMenuBuilder: _bubbleContextMenu,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
@@ -158,34 +197,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                       if (message.content.trim().isNotEmpty)
                         const SizedBox(height: 6),
                     ],
-                    if (message.content.isEmpty && widget.showTyping)
-                      TypingIndicator(label: tr(context, '正在生成回答'))
-                    else if (message.content.isEmpty &&
-                        (message.attachments.isNotEmpty || message.hasThinking))
-                      // 只有附件或只有思考内容时，不显示空正文
-                      const SizedBox.shrink()
-                    else if (isUser || isError)
-                      SelectableText(
-                        message.content,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: textColor,
-                          height: 1.42,
-                        ),
-                      )
-                    else if (widget.showTyping)
-                      // 正在流式输出：先用纯文本渲染。
-                      // MarkdownBody 每来一个字都要重新解析整段内容，
-                      // 回答越长越慢，是切换会话/长回答时卡顿的主因之一。
-                      // 等生成完再切成 Markdown 渲染（见下面的 else）。
-                      SelectableText(
-                        message.content,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: textColor,
-                          height: 1.45,
-                        ),
-                      )
-                    else
-                      _completedMarkdown(theme, textColor),
+                    ..._buildBody(context, theme, textColor, isUser, isError),
                     if (!isUser) ...[
                       const SizedBox(height: 4),
                       Align(
@@ -207,6 +219,165 @@ class _MessageBubbleState extends State<MessageBubble> {
         ],
       ),
     );
+  }
+
+  /// 磨砂玻璃气泡。
+  ///
+  /// 之所以要 ClipRRect 包住 BackdropFilter：BackdropFilter 会把**整块矩形**
+  /// 背后的内容都模糊掉，不裁剪的话圆角外围会出现一圈方形的糊斑。
+  ///
+  /// 没开磨砂时直接用普通容器：没有背景可透时 BackdropFilter 纯属浪费 GPU，
+  /// 而流式输出每秒要重绘很多次。
+  Widget _frostedBubble({
+    required Color color,
+    required BorderRadius radius,
+    required Widget child,
+    Border? border,
+  }) {
+    final Widget content = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: child,
+    );
+
+    if (!widget.frosted) {
+      return Container(
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: radius,
+          border: border,
+        ),
+        child: content,
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: radius,
+      child: BackdropFilter(
+        // 6 是实测在"看得出磨砂"和"不糊成一片"之间的折中值
+        filter: ui.ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+        child: Container(
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: radius,
+            border: border,
+          ),
+          child: content,
+        ),
+      ),
+    );
+  }
+
+  /// 正文区域。
+  ///
+  /// 一律用普通 Text：选中能力由外层的 SelectionArea 统一提供。
+  /// 这里不能再嵌 SelectableText —— 那会形成第二个选区，
+  /// 长按时会同时冒出两套菜单（实测过）。
+  List<Widget> _buildBody(
+    BuildContext context,
+    ThemeData theme,
+    Color textColor,
+    bool isUser,
+    bool isError,
+  ) {
+    final TextStyle? style = theme.textTheme.bodyMedium?.copyWith(
+      color: textColor,
+      height: 1.45,
+    );
+
+    if (message.content.isEmpty && widget.showTyping) {
+      return <Widget>[TypingIndicator(label: tr(context, '正在生成回答'))];
+    }
+    if (message.content.isEmpty &&
+        (message.attachments.isNotEmpty || message.hasThinking)) {
+      // 只有附件或只有思考内容时，不显示空正文
+      return <Widget>[const SizedBox.shrink()];
+    }
+
+    if (isUser || isError) {
+      return <Widget>[Text(message.content, style: style)];
+    }
+    if (widget.showTyping || _selectionMode) {
+      // 流式输出期间先用纯文本渲染：
+      // MarkdownBody 每来一个字都要重新解析整段内容，回答越长越慢。
+      //
+      // 用户点了「选取文本」时也走这里：Markdown 渲染出来的文字
+      // 在 SelectionArea 里无法选中，换成纯文本才能自由框选。
+      return <Widget>[Text(message.content, style: style)];
+    }
+    return <Widget>[_completedMarkdown(theme, textColor)];
+  }
+
+  /// 从选中内容里取出文字。
+  ///
+  /// 这个 Flutter 版本的 SelectedContent 只暴露 plainText（没有区间偏移），
+  /// 所以直接用它的纯文本；气泡里的时间戳等短文本可能被一起选中，
+  /// 调用方会再处理一次引用前缀，不影响主要用途。
+  String _selectedFromContent(SelectedContent? content) {
+    if (content == null) return '';
+    return content.plainText.trim();
+  }
+
+  /// 长按选中文字后弹出的菜单。
+  ///
+  /// 菜单项顺序：先给最常用的「复制当前选中文本」与「追问」，
+  /// 最后放「复制全文」——用户长按某处往往只是想复制整条回答。
+  Widget _bubbleContextMenu(
+    BuildContext context,
+    SelectableRegionState selectableRegionState,
+  ) {
+    final String selected = _selectedText;
+    return AdaptiveTextSelectionToolbar.buttonItems(
+      anchors: selectableRegionState.contextMenuAnchors,
+      buttonItems: <ContextMenuButtonItem>[
+        ContextMenuButtonItem(
+          label: tr(context, '复制当前选中文本'),
+          onPressed: () {
+            ContextMenuController.removeAny();
+            if (selected.trim().isEmpty) return;
+            _copyText(context, selected, tr(context, '已复制选中文字'));
+          },
+        ),
+        if (widget.onFollowUp != null)
+          ContextMenuButtonItem(
+            label: tr(context, '追问'),
+            onPressed: () {
+              ContextMenuController.removeAny();
+              if (selected.trim().isEmpty) return;
+              widget.onFollowUp!(selected);
+            },
+          ),
+        ContextMenuButtonItem(
+          label: tr(context, '复制全文'),
+          onPressed: () {
+            ContextMenuController.removeAny();
+            _copyText(context, message.content, tr(context, '已复制这条消息'));
+          },
+        ),
+        // Markdown 渲染出来的文字在 SelectionArea 里选不了，
+        // 想逐字框选就切到纯文本模式——这就是「选取文本」这一项的作用。
+        if (!message.isUser && !_selectionMode && message.content.isNotEmpty)
+          ContextMenuButtonItem(
+            label: tr(context, '选取文本'),
+            onPressed: () {
+              ContextMenuController.removeAny();
+              setState(() {
+                _selectionMode = true;
+                _selectedText = '';
+              });
+            },
+          ),
+      ],
+    );
+  }
+
+  void _copyText(BuildContext context, String text, String toast) {
+    if (text.isEmpty) return;
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text(toast), duration: const Duration(milliseconds: 1200)),
+      );
   }
 
   /// 思考过程区块：默认收起，只显示一行提示；点一下才展开看全文。
@@ -380,19 +551,6 @@ class _MessageBubbleState extends State<MessageBubble> {
         ),
       ),
     );
-  }
-
-  void _copy(BuildContext context) {
-    if (message.content.isEmpty) return;
-    Clipboard.setData(ClipboardData(text: message.content));
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(tr(context, '已复制这条消息')),
-          duration: const Duration(milliseconds: 1200),
-        ),
-      );
   }
 
   /// Markdown 渲染样式（深色模式下自动适配）

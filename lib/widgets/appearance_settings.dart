@@ -18,6 +18,10 @@ class AppearanceSettings extends StatefulWidget {
 class _AppearanceSettingsState extends State<AppearanceSettings> {
   bool _busy = false;
   bool _choosingLanguage = false;
+
+  /// 拖动中的气泡不透明度预览值。
+  /// 拖动时不落盘（每帧写设置会刷爆 Provider），松手才保存。
+  double? _draftOpacity;
   static const _languages = {'zh_CN': '简体中文', 'zh_TW': '繁體中文', 'en': 'English'};
 
   Future<void> _chooseLanguage() async {
@@ -87,7 +91,12 @@ class _AppearanceSettingsState extends State<AppearanceSettings> {
         : cn;
   }
 
-  Future<void> _save({String? language, String? color, String? image}) async {
+  Future<void> _save({
+    String? language,
+    String? color,
+    String? image,
+    double? bubbleOpacity,
+  }) async {
     if (_busy) return;
     setState(() => _busy = true);
     final provider = context.read<AppSettingsProvider>();
@@ -97,6 +106,7 @@ class _AppearanceSettingsState extends State<AppearanceSettings> {
         language: language,
         color: color,
         image: image,
+        bubbleOpacity: bubbleOpacity,
       );
       widget.onSaved(provider.settings);
       if (image != null && previousImage != image && previousImage.isNotEmpty) {
@@ -282,6 +292,49 @@ class _AppearanceSettingsState extends State<AppearanceSettings> {
             TextButton(
               onPressed: () => _save(image: ''),
               child: Text(t('移除背景图片', '移除背景圖片', 'Remove background image')),
+            ),
+          ],
+          const SizedBox(height: 8),
+          // 气泡不透明度：只在有自定义背景时才有意义，
+          // 没有背景可透的话调滑块看不出任何变化，徒增困惑。
+          if (settings.chatBackgroundImage.isNotEmpty ||
+              settings.chatBackgroundColor.isNotEmpty) ...[
+            Text(
+              t(
+                '气泡不透明度 {value}%',
+                '氣泡不透明度 {value}%',
+                'Bubble opacity {value}%',
+              ).replaceAll(
+                '{value}',
+                ((_draftOpacity ?? settings.bubbleOpacity) * 100)
+                    .round()
+                    .toString(),
+              ),
+            ),
+            Slider(
+              value: _draftOpacity ?? settings.bubbleOpacity,
+              min: AppSettings.minBubbleOpacity,
+              max: AppSettings.maxBubbleOpacity,
+              divisions: 14,
+              label: '${((_draftOpacity ?? settings.bubbleOpacity) * 100).round()}%',
+              onChanged: _busy
+                  ? null
+                  : (double v) => setState(() => _draftOpacity = v),
+              // 松手才落盘：拖动过程中每帧都写一次设置会把 Provider 刷爆
+              onChangeEnd: (double v) async {
+                _draftOpacity = null;
+                await _save(bubbleOpacity: v);
+              },
+            ),
+            Text(
+              t(
+                '调整聊天气泡的透明程度，越透明越能看见自定义背景',
+                '調整聊天氣泡的透明程度，越透明越能看見自訂背景',
+                'Make chat bubbles more or less transparent to reveal your custom background',
+              ),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
           if (_busy) const LinearProgressIndicator(),

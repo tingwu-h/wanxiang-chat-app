@@ -277,4 +277,33 @@ const _labels = <String, (String, String)>{
   '确认使用': ('確認使用', 'Confirm'),
   '（空回复）': ('（空回覆）', '(Empty reply)'),
   '已取消导出': ('已取消匯出', 'Export cancelled'),
+
+  // ---------- v1.3.3：长按菜单、选取文本、追问、气泡透明度 ----------
+  // 注意：'复制' 与 '已复制这条消息' 项目里原本就有（见上方 197-198 行），
+  // 这里不要重复定义，否则 const map 会报 equal_keys_in_const_map。
+  '选取文本': ('選取文字', 'Select text'),
+  '复制当前选中文本': ('複製目前選取的文字', 'Copy selected text'),
+  '复制全文': ('複製全文', 'Copy whole message'),
+  '追问': ('追問', 'Follow up'),
+  '取消选取': ('取消選取', 'Cancel selection'),
+  '已复制选中文字': ('已複製選取的文字', 'Selected text copied'),
+  '引用': ('引用', 'Quote'),
+  '清除引用': ('清除引用', 'Clear quote'),
+  '已引用选中文字，输入问题后发送': (
+    '已引用選取文字，輸入問題後傳送',
+    'Quoted. Type your question and send.',
+  ),
+  '气泡不透明度 {value}%': (
+    '氣泡不透明度 {value}%',
+    'Bubble opacity {value}%',
+  ),
+  '调整聊天气泡的透明程度，越透明越能看见自定义背景': (
+    '調整聊天氣泡的透明程度，越透明越能看見自訂背景',
+    'Make chat bubbles more or less transparent to reveal your custom background',
+  ),
+  '磨砂气泡': ('磨砂氣泡', 'Frosted bubbles'),
+  '气泡使用磨砂玻璃效果，可看见背后的背景': (
+    '氣泡使用磨砂玻璃效果，可看見背後的背景',
+    'Bubbles use a frosted-glass effect so the background shows through',
+  ),
 };

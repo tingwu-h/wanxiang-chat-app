@@ -19,6 +19,8 @@ class ChatInputBar extends StatefulWidget {
     required this.isLoading,
     required this.enabled,
     this.attachments = const <ChatAttachment>[],
+    this.quotedText = '',
+    this.onClearQuote,
     this.modelSelector,
     this.translucent = false,
   });
@@ -43,6 +45,13 @@ class ChatInputBar extends StatefulWidget {
 
   /// 当前已选、还没发出去的附件
   final List<ChatAttachment> attachments;
+
+  /// 从气泡「追问」引用过来的文字，显示在输入框上方；空串表示没有引用
+  final String quotedText;
+
+  /// 点引用条右侧的 ✕
+  final VoidCallback? onClearQuote;
+
   final Widget? modelSelector;
   final bool translucent;
 
@@ -125,6 +134,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
+                  if (widget.quotedText.trim().isNotEmpty) _buildQuoteBar(),
                   if (widget.attachments.isNotEmpty) _buildAttachmentStrip(),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
@@ -182,6 +192,50 @@ class _ChatInputBarState extends State<ChatInputBar> {
   }
 
   /// 已选附件的小卡片（图片显示缩略图，文本显示文件名）
+  /// 引用条：显示从气泡追问过来的选中文字，可一键清除。
+  ///
+  /// 只显示一行并省略号截断——引用可能很长，展开会把输入框顶得没地方；
+  /// 实际发送的是完整文字（见 chat_page 里拼 Markdown 引用块那段）。
+  Widget _buildQuoteBar() {
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(10, 8, 4, 8),
+        decoration: BoxDecoration(
+          color: scheme.surface.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(10),
+          border: Border(
+            left: BorderSide(color: scheme.primary, width: 3),
+          ),
+        ),
+        child: Row(
+          children: <Widget>[
+            Icon(Icons.format_quote, size: 15, color: scheme.primary),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                widget.quotedText.replaceAll('\n', ' ').trim(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            IconButton(
+              tooltip: tr(context, '清除引用'),
+              icon: const Icon(Icons.close, size: 16),
+              visualDensity: VisualDensity.compact,
+              onPressed: widget.onClearQuote,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildAttachmentStrip() {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     return SizedBox(
@@ -326,7 +380,10 @@ class _ChatInputBarState extends State<ChatInputBar> {
     }
 
     final bool canSend =
-        (_hasText || widget.attachments.isNotEmpty) && widget.enabled;
+        (_hasText ||
+            widget.attachments.isNotEmpty ||
+            widget.quotedText.trim().isNotEmpty) &&
+        widget.enabled;
     return IconButton.filled(
       onPressed: canSend
           ? () {
