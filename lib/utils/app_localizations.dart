@@ -304,4 +304,19 @@ const _labels = <String, (String, String)>{
     '氣泡使用磨砂玻璃效果，可看見背後的背景',
     'Bubbles use a frosted-glass effect so the background shows through',
   ),
+
+  // ---------- v1.3.4：区分超时 / 服务商错误 / 网络错误 ----------
+  '等待响应超时，连接可能已断开。请检查网络后重试。': (
+    '等待回應逾時，連線可能已中斷。請檢查網路後重試。',
+    'Timed out waiting for a response. The connection may have dropped — check your network and retry.',
+  ),
+  '网络连接失败：请确认手机能正常上网，或稍后重试。': (
+    '網路連線失敗：請確認手機能正常上網，或稍後重試。',
+    'Network connection failed. Check that this device is online, then retry.',
+  ),
+  '服务暂时不可用，请稍后重试或换一个模型。': (
+    '服務暫時無法使用，請稍後重試或換一個模型。',
+    'The service is temporarily unavailable. Retry later or switch models.',
+  ),
+  '已等待 {seconds} 秒': ('已等待 {seconds} 秒', 'Waiting {seconds}s'),
 };

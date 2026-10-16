@@ -303,27 +303,45 @@ class ChatProvider extends ChangeNotifier {
             },
             cancelOnError: true,
           );
-      await done.future;
+      // 兜底：即使底层流以任何方式卡住不再结束，这里也必须收尾，
+      // 否则 _loading 永远为 true，界面会一直转圈停不下来。
+      // 取值比服务层的静默超时宽裕，避免抢在它前面误报。
+      await done.future.timeout(
+        const Duration(seconds: 300),
+        onTimeout: () {
+          throw DeepSeekException(
+            '等待响应超时，连接可能已断开。请重试。',
+            failureKind: MessageFailure.timeout,
+          );
+        },
+      );
 
       final bool finished = token == _activeToken;
       if (finished &&
           assistant.content.trim().isEmpty &&
           !assistant.hasThinking) {
+        // 流正常结束但没有内容：算服务商没给出回答
         assistant.content = '（模型没有返回内容，请重试或换一个模型）';
         assistant.error = true;
+        assistant.failureKind = MessageFailure.provider;
       }
     } catch (e) {
+      // 三类失败要分开：超时是「等太久了」，服务商错误是「对方挂了」，
+      // 网络错误是「你自己的网断了」——用户下一步动作完全不同。
+      final String kind = classifyFailure(e);
       final String msg = e is DeepSeekException
           ? e.message
-          : '请求失败：${e.toString()}';
+          : _friendlyFailureMessage(kind);
 
       if (token == _activeToken && !receivedAny) {
         // 一个字都没收到：把空气泡换成错误气泡，不留空白
         assistant.content = msg;
         assistant.error = true;
+        assistant.failureKind = kind;
       } else if (token == _activeToken) {
         // 已经收到一部分：保留内容，把错误追加在后面
         assistant.content += '\n\n> ⚠️ 连接中断：$msg';
+        assistant.failureKind = kind;
       }
       if (token == _activeToken) _error = msg;
     } finally {
@@ -370,6 +388,22 @@ class ChatProvider extends ChangeNotifier {
     if (_error == null) return;
     _error = null;
     notifyListeners();
+  }
+
+  /// 把非 [DeepSeekException] 的底层异常翻译成用户看得懂的中文。
+  ///
+  /// 之前这里直接把 `$e` 拼进提示，结果界面上会出现
+  /// 「请求失败：TimeoutException after 0:01:30.000000: Future not completed」
+  /// 这种技术文本，普通用户完全无从下手。
+  String _friendlyFailureMessage(String kind) {
+    switch (kind) {
+      case MessageFailure.timeout:
+        return '等待响应超时，连接可能已断开。请检查网络后重试。';
+      case MessageFailure.network:
+        return '网络连接失败：请确认手机能正常上网，或稍后重试。';
+      default:
+        return '服务暂时不可用，请稍后重试或换一个模型。';
+    }
   }
 
   Future<void> _persist(Conversation conv) async {

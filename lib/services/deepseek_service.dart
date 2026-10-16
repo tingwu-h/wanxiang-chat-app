@@ -27,13 +27,54 @@ class ChatChunk {
 
 /// 调用失败的异常，`message` 已经是可以直接展示给用户的中文提示。
 class DeepSeekException implements Exception {
-  DeepSeekException(this.message, {this.statusCode});
+  DeepSeekException(this.message, {this.statusCode, this.failureKind});
 
   final String message;
   final int? statusCode;
 
+  /// 失败类别（见 [MessageFailure]）。
+  ///
+  /// 由抛出处按已知信息直接标明，比事后猜异常类型更准：
+  /// 例如同一个 DeepSeekException 既可能是服务商 5xx，也可能是本地参数校验。
+  final String? failureKind;
+
   @override
   String toString() => message;
+}
+
+/// 把底层异常归到 [MessageFailure] 三类之一。
+///
+/// 放在这里而不是 Provider 里，是因为只有服务层知道请求是怎么发的
+/// （比如 http 会把 SocketException 包进 ClientException）。
+String classifyFailure(Object error) {
+  if (error is DeepSeekException) {
+    return error.failureKind ?? MessageFailure.provider;
+  }
+  if (error is TimeoutException) return MessageFailure.timeout;
+
+  // http 客户端会把底层 socket 错误包成 ClientException，
+  // 所以要连 cause 一起看，否则网络问题会被误判成服务商问题。
+  Object? probe = error;
+  for (int depth = 0; depth < 4 && probe != null; depth++) {
+    if (probe is SocketException ||
+        probe is HandshakeException ||
+        probe is HttpException ||
+        probe is http.ClientException) {
+      return MessageFailure.network;
+    }
+    probe = probe is Error ? null : _causeOf(probe);
+  }
+  return MessageFailure.provider;
+}
+
+/// 尽量取出异常的 cause（没有就返回 null）
+Object? _causeOf(Object error) {
+  try {
+    final dynamic d = error;
+    return d.cause as Object?;
+  } catch (_) {
+    return null;
+  }
 }
 
 /// DeepSeek API 封装：`POST {baseUrl}/chat/completions`（OpenAI 兼容格式）。
@@ -67,8 +108,18 @@ class DeepSeekService implements ChatService {
     if (abort != null && !abort.isCompleted) abort.complete();
   }
 
-  /// 单次请求最长等待时间（流式请求是「首包 + 每个数据块」的超时）
-  static const Duration timeout = Duration(seconds: 90);
+  /// 建立连接（拿到响应头）的最长等待时间。
+  static const Duration connectTimeout = Duration(seconds: 60);
+
+  /// 连续「一个字节都没收到」多久算连接已死。
+  ///
+  /// 为什么是 180 秒：必须比任何正常的慢回答都宽松。
+  /// 只要服务端还在发数据（哪怕很慢），这个计时就会被重置，
+  /// 所以它**只**能抓住"连接彻底没响应"这一种情况。
+  ///
+  /// 刻意不设"多久没内容就失败"那种超时：服务端发心跳却没内容时，
+  /// 从网络层看和慢回答完全一样，设了必然误杀慢回答。
+  static const Duration silenceTimeout = Duration(seconds: 180);
 
   @override
   void dispose() {
@@ -204,23 +255,33 @@ class DeepSeekService implements ChatService {
       throw DeepSeekException('对话附件过多，请新建对话或减少图片后再发送。');
     }
 
-    final http.StreamedResponse response = await _client
-        .send(request)
-        .timeout(timeout);
+    // 建连超时单独捕获：它和"连上后长时间没数据"要给不同提示，
+    // 否则用户不知道该查网络还是该等模型。
+    final http.StreamedResponse response;
+    try {
+      response = await _client.send(request).timeout(connectTimeout);
+    } on TimeoutException {
+      throw DeepSeekException(
+        '连接 ${presetFor(settings.providerId).name} 超时（已等待 ${connectTimeout.inSeconds} 秒）。'
+        '请检查网络后重试。',
+        failureKind: MessageFailure.timeout,
+      );
+    }
 
     // 服务端直接报错（401 / 402 / 429 ...）：把 JSON 里的 message 读出来
     if (response.statusCode != 200) {
-      final String raw = await response.stream.bytesToString().timeout(timeout);
+      final String raw = await response.stream.bytesToString().timeout(silenceTimeout);
       throw DeepSeekException(
         _friendlyError(response.statusCode, raw),
         statusCode: response.statusCode,
+        failureKind: MessageFailure.provider,
       );
     }
 
     // Some compatible services respond with ordinary JSON even when stream=true.
     // Consume that response once; never resend a billable request automatically.
     if ((response.headers['content-type'] ?? '').contains('application/json')) {
-      final raw = await response.stream.bytesToString().timeout(timeout);
+      final raw = await response.stream.bytesToString().timeout(silenceTimeout);
       final json = jsonDecode(raw) as Map<String, dynamic>;
       if (settings.protocol != 'openai') {
         for (final (text, thinking, done) in ApiProtocol.decode(
@@ -254,67 +315,81 @@ class DeepSeekService implements ChatService {
         .transform(const Utf8Decoder(allowMalformed: true))
         .transform(const LineSplitter());
 
-    await for (final String rawLine in lines.timeout(timeout)) {
-      final String line = rawLine.trim();
-      if (line.isEmpty) continue;
+    // 静默超时的含义：整整 silenceTimeout 内一个字节都没收到。
+    // 只要服务端还在发数据（心跳也算），这个计时就会被重置，
+    // 所以它抓的是"连接已死"，不会误杀慢回答。
+    try {
+      await for (final String rawLine in lines.timeout(silenceTimeout)) {
+        final String line = rawLine.trim();
+        if (line.isEmpty) continue;
 
-      // SSE 里还有 "event:" / "id:" / ":keep-alive" 等行，只要 data:
-      if (!line.startsWith('data:')) continue;
-      final String payload = line.substring(5).trim();
-      if (payload.isEmpty) continue;
-      if (payload == '[DONE]') {
-        yield const ChatChunk('', done: true);
-        break;
-      }
-
-      Map<String, dynamic> json;
-      try {
-        final Object? decoded = jsonDecode(payload);
-        if (decoded is! Map<String, dynamic>) continue;
-        json = decoded;
-      } catch (_) {
-        // 半包/心跳等异常片段，跳过即可，不要中断整个回答
-        continue;
-      }
-
-      // 有些兼容代理把错误塞在流里
-      final Object? error = json['error'];
-      if (error is Map && error['message'] is String) {
-        throw DeepSeekException('服务端返回错误：${error['message']}');
-      }
-
-      if (settings.protocol != 'openai') {
-        for (final (text, thinking, done) in ApiProtocol.decode(
-          settings.protocol,
-          json,
-        )) {
-          yield ChatChunk(text, thinking: thinking, done: done);
+        // SSE 里还有 "event:" / "id:" / ":keep-alive" 等行，只要 data:
+        if (!line.startsWith('data:')) continue;
+        final String payload = line.substring(5).trim();
+        if (payload.isEmpty) continue;
+        if (payload == '[DONE]') {
+          yield const ChatChunk('', done: true);
+          break;
         }
-        continue;
-      }
-      final Object? choices = json['choices'];
-      if (choices is! List || choices.isEmpty) continue;
-      final Object? first = choices.first;
-      if (first is! Map) continue;
 
-      final Object? delta = first['delta'];
-      if (delta is Map) {
-        final Object? reasoning = delta['reasoning_content'];
-        if (reasoning is String && reasoning.isNotEmpty) {
-          yield ChatChunk(reasoning, thinking: true);
+        Map<String, dynamic> json;
+        try {
+          final Object? decoded = jsonDecode(payload);
+          if (decoded is! Map<String, dynamic>) continue;
+          json = decoded;
+        } catch (_) {
+          // 半包/心跳等异常片段，跳过即可，不要中断整个回答
+          continue;
         }
-        final Object? content = delta['content'];
-        if (content is String && content.isNotEmpty) {
-          yield ChatChunk(content);
+
+        // 有些兼容代理把错误塞在流里
+        final Object? error = json['error'];
+        if (error is Map && error['message'] is String) {
+          throw DeepSeekException(
+            '服务端返回错误：${error['message']}',
+            failureKind: MessageFailure.provider,
+          );
         }
-      } else {
-        // 少数代理会把 stream 响应降级成完整 message
-        final Object? message = first['message'];
-        if (message is Map && message['content'] is String) {
-          final String text = message['content'] as String;
-          if (text.isNotEmpty) yield ChatChunk(text);
+
+        if (settings.protocol != 'openai') {
+          for (final (text, thinking, done) in ApiProtocol.decode(
+            settings.protocol,
+            json,
+          )) {
+            yield ChatChunk(text, thinking: thinking, done: done);
+          }
+          continue;
+        }
+        final Object? choices = json['choices'];
+        if (choices is! List || choices.isEmpty) continue;
+        final Object? first = choices.first;
+        if (first is! Map) continue;
+
+        final Object? delta = first['delta'];
+        if (delta is Map) {
+          final Object? reasoning = delta['reasoning_content'];
+          if (reasoning is String && reasoning.isNotEmpty) {
+            yield ChatChunk(reasoning, thinking: true);
+          }
+          final Object? content = delta['content'];
+          if (content is String && content.isNotEmpty) {
+            yield ChatChunk(content);
+          }
+        } else {
+          // 少数代理会把 stream 响应降级成完整 message
+          final Object? message = first['message'];
+          if (message is Map && message['content'] is String) {
+            final String text = message['content'] as String;
+            if (text.isNotEmpty) yield ChatChunk(text);
+          }
         }
       }
+    } on TimeoutException {
+      throw DeepSeekException(
+        '等待 ${presetFor(settings.providerId).name} 响应超过 '
+        '${silenceTimeout.inSeconds ~/ 60} 分钟，连接可能已断开。请重试。',
+        failureKind: MessageFailure.timeout,
+      );
     }
   }
 
@@ -355,8 +430,8 @@ class DeepSeekService implements ChatService {
           ..headers.addAll(ApiProtocol.headers(settings))
           ..body = jsonEncode(ApiProtocol.body(settings, apiMessages, false));
     final response = await http.Response.fromStream(
-      await _client.send(request).timeout(timeout),
-    ).timeout(timeout);
+      await _client.send(request).timeout(connectTimeout),
+    ).timeout(silenceTimeout);
 
     final String raw = utf8.decode(response.bodyBytes, allowMalformed: true);
     if (response.statusCode != 200) {

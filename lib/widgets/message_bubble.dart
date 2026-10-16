@@ -282,7 +282,13 @@ class _MessageBubbleState extends State<MessageBubble> {
     );
 
     if (message.content.isEmpty && widget.showTyping) {
-      return <Widget>[TypingIndicator(label: tr(context, '正在生成回答'))];
+      return <Widget>[
+        TypingIndicator(
+          label: tr(context, '正在生成回答'),
+          waitingLabelBuilder: (int seconds) =>
+              tr(context, '已等待 {seconds} 秒', {'seconds': seconds}),
+        ),
+      ];
     }
     if (message.content.isEmpty &&
         (message.attachments.isNotEmpty || message.hasThinking)) {
@@ -290,7 +296,28 @@ class _MessageBubbleState extends State<MessageBubble> {
       return <Widget>[const SizedBox.shrink()];
     }
 
-    if (isUser || isError) {
+    if (isError) {
+      // 失败气泡按类别加个小图标，让用户一眼看出是"等太久"、
+      // "服务商挂了"还是"自己的网断了"。
+      final IconData? icon = _failureIcon(message.failureKind);
+      if (icon == null) {
+        return <Widget>[Text(message.content, style: style)];
+      }
+      return <Widget>[
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Icon(icon, size: 15, color: textColor),
+            ),
+            const SizedBox(width: 6),
+            Expanded(child: Text(message.content, style: style)),
+          ],
+        ),
+      ];
+    }
+    if (isUser) {
       return <Widget>[Text(message.content, style: style)];
     }
     if (widget.showTyping) {
@@ -300,6 +327,20 @@ class _MessageBubbleState extends State<MessageBubble> {
       return <Widget>[Text(message.content, style: style)];
     }
     return <Widget>[_completedMarkdown(theme, textColor)];
+  }
+
+  /// 失败类别对应的小图标；不是三类失败之一时返回 null（用纯文本渲染）
+  IconData? _failureIcon(String? kind) {
+    switch (kind) {
+      case MessageFailure.timeout:
+        return Icons.hourglass_disabled_outlined;
+      case MessageFailure.network:
+        return Icons.wifi_off_outlined;
+      case MessageFailure.provider:
+        return Icons.cloud_off_outlined;
+      default:
+        return null;
+    }
   }
 
   /// 从选中内容里取出文字。

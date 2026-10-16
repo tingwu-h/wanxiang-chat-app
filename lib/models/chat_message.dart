@@ -2,6 +2,25 @@ import 'dart:convert';
 
 import 'package:deepseek_chat/models/chat_attachment.dart';
 
+/// 消息失败类别（v1.3.4 起）。
+///
+/// 分三类是为了给出不同提示语：超时是「等太久了」，
+/// 服务商错误是「对方挂了」，网络错误是「你自己的网断了」。
+/// 三者的用户下一步动作完全不同，所以不能合并成一句话。
+class MessageFailure {
+  /// 等待超时（连接超时或长时间零字节）
+  static const String timeout = 'timeout';
+
+  /// 服务商返回错误（429 / 5xx / 流内 error 字段等）
+  static const String provider = 'provider';
+
+  /// 本机网络问题（连接被重置、DNS 失败、TLS 失败等）
+  static const String network = 'network';
+
+  static bool isValid(String? kind) =>
+      kind == timeout || kind == provider || kind == network;
+}
+
 /// 对话中的一条消息。
 ///
 /// 与 DeepSeek `/chat/completions` 的 message 结构保持一致：
@@ -16,6 +35,7 @@ class ChatMessage {
     required this.content,
     DateTime? timestamp,
     this.error = false,
+    this.failureKind,
     this.providerId,
     this.model,
     this.thinking = '',
@@ -47,6 +67,15 @@ class ChatMessage {
   /// 注意：必须是可变的。ChatProvider 在流式接收失败时会把已经插入的空气泡
   /// 就地标记成错误气泡（`assistant.error = true`），final 会导致编译失败。
   bool error;
+
+  /// 失败类别，取值见 [MessageFailure]；null 表示这条不是失败气泡。
+  ///
+  /// 只在失败时写入。旧版本存下来的历史没有这个字段，读成 null 即可，
+  /// 仍按 [error] 渲染成同一个错误气泡，不会因为缺字段而报错。
+  String? failureKind;
+
+  /// 是否已经根据 [failureKind] 认出是哪一类失败
+  bool get hasFailureKind => MessageFailure.isValid(failureKind);
 
   /// 附件（图片 / 文本类文件）。只有用户消息会有。
   final List<ChatAttachment> attachments;
@@ -97,6 +126,7 @@ class ChatMessage {
     if (providerId != null) 'providerId': providerId,
     if (model != null) 'model': model,
     'error': error,
+    if (hasFailureKind) 'failureKind': failureKind,
     if (thinking.isNotEmpty) 'thinking': thinking,
     if (attachments.isNotEmpty)
       'attachments': attachments.map((ChatAttachment a) => a.toJson()).toList(),
@@ -112,6 +142,10 @@ class ChatMessage {
           ? DateTime.fromMillisecondsSinceEpoch(json['timestamp'] as int)
           : (DateTime.tryParse('${json['timestamp']}') ?? DateTime.now()),
       error: json['error'] == true,
+      // 旧数据没有这个字段，或存了未知值，都退回 null（仍按 error 渲染）
+      failureKind: MessageFailure.isValid(json['failureKind'] as String?)
+          ? json['failureKind'] as String
+          : null,
       providerId: json['providerId'] as String?,
       model: json['model'] as String?,
       thinking: (json['thinking'] as String?) ?? '',
