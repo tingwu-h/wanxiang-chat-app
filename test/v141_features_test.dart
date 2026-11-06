@@ -141,9 +141,13 @@ void main() {
     });
   });
 
-  group('联网图标使用项目自带资源', () {
-    testWidgets('开关渲染的是 assets/branding/search_icon.png', (WidgetTester tester) async {
-      await tester.pumpWidget(
+  group('联网开关：图标与位置', () {
+    Widget bar({
+      bool searchAvailable = true,
+      bool searchEnabled = false,
+      bool thinkingAvailable = false,
+      Widget? modelSelector,
+    }) =>
         MaterialApp(
           home: Scaffold(
             body: ChatInputBar(
@@ -155,22 +159,71 @@ void main() {
               onRemoveAttachment: (_) {},
               isLoading: false,
               enabled: true,
-              searchAvailable: true,
-              searchEnabled: false,
+              searchAvailable: searchAvailable,
+              searchEnabled: searchEnabled,
               onToggleSearch: () {},
+              thinkingAvailable: thinkingAvailable,
+              thinkingEnabled: true,
+              onToggleThinking: () {},
+              modelSelector: modelSelector,
             ),
           ),
-        ),
-      );
+        );
 
-      final bool found = tester
+    testWidgets('用矢量图标，不再依赖位图资源', (WidgetTester tester) async {
+      await tester.pumpWidget(bar());
+      final bool usesBitmap = tester
           .widgetList<Image>(find.byType(Image))
-          .any((Image img) {
-            final ImageProvider p = img.image;
-            return p is AssetImage &&
-                p.assetName == 'assets/branding/search_icon.png';
-          });
-      expect(found, isTrue, reason: '联网开关应使用项目自带图标');
+          .any((Image img) => img.image is AssetImage);
+      expect(usesBitmap, isFalse, reason: '不能用位图图标（18dp 会发虚）');
+      // 关闭态用描边地球
+      expect(find.byIcon(Icons.travel_explore_outlined), findsOneWidget);
+    });
+
+    /// 读取胶囊里的文字（不依赖语言：中英文都算通过）
+    String chipLabel(WidgetTester tester, Key key) {
+      final Finder finder = find.descendant(
+        of: find.byKey(key),
+        matching: find.byType(Text),
+      );
+      expect(finder, findsWidgets);
+      return tester.widget<Text>(finder.first).data ?? '';
+    }
+
+    testWidgets('开启态换成实心地球，并显示文字', (WidgetTester tester) async {
+      await tester.pumpWidget(bar(searchEnabled: true));
+      expect(find.byIcon(Icons.travel_explore), findsOneWidget);
+      expect(
+        chipLabel(tester, const ValueKey('mode-chip-search')),
+        anyOf('联网', 'Web'),
+      );
+    });
+
+    testWidgets('两个开关都在底部行（模型选择器同一行）', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        bar(thinkingAvailable: true, modelSelector: const Text('deepseek-flash')),
+      );
+      final Finder thinking = find.byKey(const ValueKey('mode-chip-thinking'));
+      final Finder search = find.byKey(const ValueKey('mode-chip-search'));
+      expect(thinking, findsOneWidget);
+      expect(search, findsOneWidget);
+
+      // 两者纵向位置应接近模型胶囊，而不是贴着输入框
+      final double modelY = tester.getCenter(find.text('deepseek-flash')).dy;
+      expect((tester.getCenter(thinking).dy - modelY).abs() < 24, isTrue);
+      expect((tester.getCenter(search).dy - modelY).abs() < 24, isTrue);
+    });
+
+    testWidgets('两个胶囊都带文字标签', (WidgetTester tester) async {
+      await tester.pumpWidget(bar(thinkingAvailable: true));
+      expect(
+        chipLabel(tester, const ValueKey('mode-chip-search')),
+        anyOf('联网', 'Web'),
+      );
+      expect(
+        chipLabel(tester, const ValueKey('mode-chip-thinking')),
+        anyOf('思考', 'Think'),
+      );
     });
   });
 }

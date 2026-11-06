@@ -98,7 +98,7 @@ Connection tests and conversations make real API requests and may incur charges.
 <details>
 <summary><strong>Upgrading from DeepSeek Assistant</strong></summary>
 
-Version v1.4.1 uses build number **22**. The Android package remains `com.example.deepseek_chat`, and the original signing certificate is retained to support upgrades from earlier installations. Do not uninstall the old app just to upgrade. Physical-device upgrade and data-retention checks are still pending; export important chat text first.
+Version v1.4.1 uses build number **23**. The Android package remains `com.example.deepseek_chat`, and the original signing certificate is retained to support upgrades from earlier installations. Do not uninstall the old app just to upgrade. Physical-device upgrade and data-retention checks are still pending; export important chat text first.
 
 Some internal package names, storage keys, and platform channels retain their original names for compatibility. The public-facing brand is **Wanxiang**. Build details and APK checksums are recorded in the [v1.4.1 release notes (中文)](docs/1.4.1-更新说明.md).
 

@@ -171,9 +171,6 @@ class _ChatInputBarState extends State<ChatInputBar> {
                     children: <Widget>[
                       _buildAddButton(),
                       const SizedBox(width: 4),
-                      _buildSearchToggle(),
-                      if (widget.thinkingAvailable) _buildThinkingToggle(),
-                      const SizedBox(width: 4),
                       Expanded(
                         child: TextField(
                           controller: _controller,
@@ -209,12 +206,57 @@ class _ChatInputBarState extends State<ChatInputBar> {
                       _buildActionButton(),
                     ],
                   ),
-                  if (widget.modelSelector != null) ...[
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: widget.modelSelector,
-                    ),
-                  ],
+                  // 模式开关行：左边模型，右边「思考 / 联网」。
+                  // 两者都是「这次怎么答」，放一起语义一致；
+                  // 输入行只留真正常用的「加附件 / 输入 / 发送」。
+                  const SizedBox(height: 2),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child:
+                              widget.modelSelector ?? const SizedBox.shrink(),
+                        ),
+                      ),
+                      if (widget.thinkingAvailable) ...<Widget>[
+                        _buildModeChip(
+                          key: const ValueKey('mode-chip-thinking'),
+                          icon: widget.thinkingEnabled
+                              ? Icons.psychology
+                              : Icons.psychology_outlined,
+                          label: tr(context, '思考'),
+                          value: widget.thinkingEnabled,
+                          enabled: widget.onToggleThinking != null,
+                          onTap: widget.onToggleThinking,
+                          tooltip: widget.thinkingEnabled
+                              ? tr(context, '深度思考：已开启（点击关闭）')
+                              : tr(context, '深度思考：已关闭（点击开启）'),
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+                      _buildModeChip(
+                        key: const ValueKey('mode-chip-search'),
+                        // 用 1.4.0 的图标（Material travel_explore），
+                        // 位图在 18dp 下会发虚，矢量图标才清晰。
+                        icon: widget.searchEnabled
+                            ? Icons.travel_explore
+                            : Icons.travel_explore_outlined,
+                        label: tr(context, '联网'),
+                        value: widget.searchEnabled,
+                        enabled:
+                            widget.searchAvailable &&
+                            widget.onToggleSearch != null,
+                        onTap: widget.onToggleSearch,
+                        busy: widget.isSearching,
+                        tooltip: !widget.searchAvailable
+                            ? tr(context, '联网搜索需要 DeepSeek API Key')
+                            : widget.searchEnabled
+                            ? tr(context, '联网搜索：已开启（点击关闭）')
+                            : tr(context, '联网搜索：已关闭（点击开启）'),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -345,77 +387,96 @@ class _ChatInputBarState extends State<ChatInputBar> {
     );
   }
 
-  /// 联网开关：状态可见、可点、不可用时置灰并说明原因。
-  ///
-  /// 它会即时反映到设置里（由聊天页处理联动），
-  /// 所以这里只负责展示与回调，不自己存状态。
-  Widget _buildSearchToggle() {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final bool on = widget.searchEnabled;
-    final bool canTap = widget.searchAvailable && widget.onToggleSearch != null;
 
-    final String tooltip = !widget.searchAvailable
-        ? tr(context, '联网搜索需要 DeepSeek API Key')
-        : on
-        ? tr(context, '联网搜索：已开启（点击关闭）')
-        : tr(context, '联网搜索：已关闭（点击开启）');
+  /// 模式开关（联网 / 深度思考）的胶囊按钮。
+  ///
+  /// 为什么做成胶囊：它和左边的模型选择器是同一层级的东西
+  /// （都是「这次用什么方式回答」），同一个形状语言才不会显得零散。
+  ///
+  /// 状态一律靠**颜色 + 文字**表达，不靠图标细微差异——
+  /// 开启时用 primaryContainer 底 + primary 文字，关闭时只有描边。
+  Widget _buildModeChip({
+    required Key key,
+    required IconData icon,
+    required String label,
+    required bool value,
+    required bool enabled,
+    required String tooltip,
+    VoidCallback? onTap,
+    bool busy = false,
+  }) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final Color foreground = !enabled
+        ? scheme.onSurface.withValues(alpha: .35)
+        : value
+        ? scheme.primary
+        : scheme.onSurfaceVariant;
+    final Color background = !enabled
+        ? Colors.transparent
+        : value
+        ? scheme.primaryContainer.withValues(alpha: .55)
+        : Colors.transparent;
+    final Color borderColor = !enabled
+        ? scheme.outlineVariant.withValues(alpha: .35)
+        : value
+        ? scheme.primary.withValues(alpha: .65)
+        : scheme.outlineVariant.withValues(alpha: .6);
 
     return Tooltip(
       message: tooltip,
-      child: IconButton(
-        onPressed: canTap ? widget.onToggleSearch : null,
-        iconSize: 20,
-        visualDensity: VisualDensity.compact,
-        icon: widget.isSearching
-            ? SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: scheme.primary,
-                ),
-              )
-            // 用项目自带图标（用户提供），比 Material 的 travel_explore 更贴合品牌；
-            // 源图只有 26px，所以按 18dp 小尺寸渲染并开启中等插值，尽量减轻发虚。
-            : Opacity(
-                opacity: on
-                    ? 1
-                    : (widget.searchAvailable ? 0.62 : 0.28),
-                child: Image.asset(
-                  'assets/branding/search_icon.png',
-                  width: 18,
-                  height: 18,
-                  filterQuality: FilterQuality.medium,
-                ),
+      child: Semantics(
+        button: true,
+        toggled: value,
+        enabled: enabled,
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            key: key,
+            onTap: enabled ? onTap : null,
+            customBorder: const StadiumBorder(),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
+              height: 34,
+              padding: const EdgeInsets.symmetric(horizontal: 11),
+              decoration: ShapeDecoration(
+                color: background,
+                shape: StadiumBorder(side: BorderSide(color: borderColor)),
               ),
-      ),
-    );
-  }
-
-  /// 深度思考快捷开关。
-  ///
-  /// 只在 DeepSeek 下显示——这是 DeepSeek 专有参数，
-  /// 对其它服务商显示出来会让人误以为能控制。
-  Widget _buildThinkingToggle() {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final bool on = widget.thinkingEnabled;
-    return Tooltip(
-      message: on
-          ? tr(context, '深度思考：已开启（点击关闭）')
-          : tr(context, '深度思考：已关闭（点击开启）'),
-      child: IconButton(
-        onPressed: widget.onToggleThinking,
-        iconSize: 20,
-        visualDensity: VisualDensity.compact,
-        icon: Icon(
-          on ? Icons.psychology : Icons.psychology_outlined,
-          color: on ? scheme.primary : scheme.onSurfaceVariant,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  if (busy)
+                    SizedBox(
+                      width: 13,
+                      height: 13,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 1.8,
+                        color: foreground,
+                      ),
+                    )
+                  else
+                    Icon(icon, size: 15, color: foreground),
+                  const SizedBox(width: 5),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      height: 1.1,
+                      color: foreground,
+                      fontWeight: value ? FontWeight.w600 : FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildAddButton() {    final ColorScheme scheme = Theme.of(context).colorScheme;
+  Widget _buildAddButton() {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
     final bool active = widget.enabled && !widget.isLoading;
     return PopupMenuButton<String>(
       clipBehavior: Clip.antiAlias,
