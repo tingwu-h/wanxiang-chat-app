@@ -428,15 +428,25 @@ void main() {
       ),
     );
 
-    testWidgets('开启时渲染来源区块', (WidgetTester tester) async {
+    testWidgets('开启时显示可展开的来源标题（默认收起，不铺开列表）',
+        (WidgetTester tester) async {
       await tester.pumpWidget(bubble(showSources: true));
-      expect(find.textContaining('来源'), findsWidgets);
+      // 默认收起：只有一行可点的标题（用展开箭头判断，避免依赖语言）
+      expect(find.byIcon(Icons.expand_more), findsOneWidget);
+      expect(find.textContaining('来源标题'), findsNothing);
+
+      // 点一下才展开
+      await tester.tap(find.byIcon(Icons.expand_more));
+      await tester.pumpAndSettle();
       expect(find.textContaining('来源标题'), findsOneWidget);
+      // 展开后箭头翻转
+      expect(find.byIcon(Icons.expand_less), findsOneWidget);
     });
 
     testWidgets('关闭时不渲染来源', (WidgetTester tester) async {
       await tester.pumpWidget(bubble(showSources: false));
       expect(find.textContaining('来源标题'), findsNothing);
+      expect(find.byIcon(Icons.expand_more), findsNothing);
     });
   });
 

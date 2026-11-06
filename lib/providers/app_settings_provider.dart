@@ -115,11 +115,13 @@ class AppSettingsProvider extends ChangeNotifier {
     bool? thinkingEnabled,
     String? reasoningEffort,
     String? imageDetail,
+    bool? injectCurrentTime,
   }) => replace(
     _settings.copyWith(
       thinkingEnabled: thinkingEnabled,
       reasoningEffort: reasoningEffort,
       imageDetail: imageDetail,
+      injectCurrentTime: injectCurrentTime,
     ),
   );
 

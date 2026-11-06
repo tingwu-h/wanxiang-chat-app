@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 
 import 'package:deepseek_chat/models/app_settings.dart';
 import 'package:deepseek_chat/pages/about_page.dart';
+import 'package:deepseek_chat/pages/model_behaviour_page.dart';
 import 'package:deepseek_chat/pages/search_settings_page.dart';
 import 'package:deepseek_chat/utils/app_info.dart';
 import 'package:deepseek_chat/widgets/model_tags.dart';
@@ -949,6 +950,18 @@ class _SettingsPageState extends State<SettingsPage> {
                 tr(context, '联网搜索'),
                 tr(context, '联网检索、思考模式与图片档位'),
                 [
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.psychology_outlined),
+                    title: Text(tr(context, '模型行为')),
+                    subtitle: Text(
+                      tr(context, '深度思考、推理强度、图片档位与时间注入'),
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(
+                      context,
+                    ).pushNamed(ModelBehaviourPage.routeName),
+                  ),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.tune),

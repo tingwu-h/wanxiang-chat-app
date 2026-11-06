@@ -28,6 +28,9 @@ class ChatInputBar extends StatefulWidget {
     this.onToggleSearch,
     this.searchAvailable = true,
     this.isSearching = false,
+    this.thinkingEnabled = true,
+    this.thinkingAvailable = false,
+    this.onToggleThinking,
   });
 
   /// 点击发送（文字已 trim，可能为空串——表示只发附件）
@@ -72,6 +75,15 @@ class ChatInputBar extends StatefulWidget {
 
   /// 正在检索中，显示「正在搜索…」
   final bool isSearching;
+
+  /// 深度思考是否开启（仅 DeepSeek 有效）
+  final bool thinkingEnabled;
+
+  /// 当前服务商是否支持深度思考开关；false 时该按钮不显示
+  final bool thinkingAvailable;
+
+  /// 点击深度思考开关
+  final VoidCallback? onToggleThinking;
 
   @override
   State<ChatInputBar> createState() => _ChatInputBarState();
@@ -160,6 +172,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                       _buildAddButton(),
                       const SizedBox(width: 4),
                       _buildSearchToggle(),
+                      if (widget.thinkingAvailable) _buildThinkingToggle(),
                       const SizedBox(width: 4),
                       Expanded(
                         child: TextField(
@@ -362,14 +375,42 @@ class _ChatInputBarState extends State<ChatInputBar> {
                   color: scheme.primary,
                 ),
               )
-            : Icon(
-                on ? Icons.travel_explore : Icons.travel_explore_outlined,
-                color: on
-                    ? scheme.primary
-                    : (widget.searchAvailable
-                          ? scheme.onSurfaceVariant
-                          : scheme.onSurfaceVariant.withValues(alpha: 0.4)),
+            // 用项目自带图标（用户提供），比 Material 的 travel_explore 更贴合品牌；
+            // 源图只有 26px，所以按 18dp 小尺寸渲染并开启中等插值，尽量减轻发虚。
+            : Opacity(
+                opacity: on
+                    ? 1
+                    : (widget.searchAvailable ? 0.62 : 0.28),
+                child: Image.asset(
+                  'assets/branding/search_icon.png',
+                  width: 18,
+                  height: 18,
+                  filterQuality: FilterQuality.medium,
+                ),
               ),
+      ),
+    );
+  }
+
+  /// 深度思考快捷开关。
+  ///
+  /// 只在 DeepSeek 下显示——这是 DeepSeek 专有参数，
+  /// 对其它服务商显示出来会让人误以为能控制。
+  Widget _buildThinkingToggle() {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final bool on = widget.thinkingEnabled;
+    return Tooltip(
+      message: on
+          ? tr(context, '深度思考：已开启（点击关闭）')
+          : tr(context, '深度思考：已关闭（点击开启）'),
+      child: IconButton(
+        onPressed: widget.onToggleThinking,
+        iconSize: 20,
+        visualDensity: VisualDensity.compact,
+        icon: Icon(
+          on ? Icons.psychology : Icons.psychology_outlined,
+          color: on ? scheme.primary : scheme.onSurfaceVariant,
+        ),
       ),
     );
   }

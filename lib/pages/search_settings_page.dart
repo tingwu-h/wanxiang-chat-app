@@ -174,68 +174,8 @@ class _SearchSettingsPageState extends State<SearchSettingsPage> {
             ),
           ),
           const SizedBox(height: 20),
-          const Divider(),
-          const SizedBox(height: 8),
           Text(
-            tr(context, '思考模式'),
-            style: theme.textTheme.titleSmall,
-          ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(tr(context, '思考模式')),
-            subtitle: Text(
-              tr(context, '开启后模型会先输出推理过程，更慢但通常更准'),
-            ),
-            value: s.thinkingEnabled,
-            onChanged: (bool v) => _update(
-              () => provider.updateModelBehaviour(thinkingEnabled: v),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            tr(context, '推理强度'),
-            style: theme.textTheme.titleSmall,
-          ),
-          Wrap(
-            spacing: 8,
-            children: <Widget>[
-              for (final String effort in AppSettings.reasoningEfforts)
-                ChoiceChip(
-                  label: Text(effort),
-                  selected: s.reasoningEffort == effort,
-                  onSelected: (_) => _update(
-                    () => provider.updateModelBehaviour(reasoningEffort: effort),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            tr(context, '图片细节档位'),
-            style: theme.textTheme.titleSmall,
-          ),
-          Wrap(
-            spacing: 8,
-            children: <Widget>[
-              ChoiceChip(
-                label: Text(tr(context, '原始')),
-                selected: s.imageDetail != 'low',
-                onSelected: (_) => _update(
-                  () => provider.updateModelBehaviour(imageDetail: ''),
-                ),
-              ),
-              ChoiceChip(
-                label: Text(tr(context, '低（更快更省）')),
-                selected: s.imageDetail == 'low',
-                onSelected: (_) => _update(
-                  () => provider.updateModelBehaviour(imageDetail: 'low'),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            tr(context, '思考模式下温度设置不生效'),
+            tr(context, '思考模式、推理强度、图片档位与时间注入已移到「模型行为」页面'),
             style: theme.textTheme.bodySmall?.copyWith(
               color: scheme.onSurfaceVariant,
             ),

@@ -26,6 +26,7 @@ class AppSettings {
     this.thinkingEnabled = true,
     this.reasoningEffort = defaultReasoningEffort,
     this.imageDetail = '',
+    this.injectCurrentTime = true,
   });
 
   /// DeepSeek 官方 API 基地址
@@ -143,6 +144,7 @@ class AppSettings {
       'thinkingEnabled': thinkingEnabled,
       'reasoningEffort': reasoningEffort,
       'imageDetail': imageDetail,
+      'injectCurrentTime': injectCurrentTime,
     });
   }
 
@@ -193,6 +195,12 @@ class AppSettings {
 
   /// 图片细节档位：'' / low / original
   final String imageDetail;
+
+  /// 是否把当前日期时间注入系统提示词。
+  ///
+  /// 模型本身不知道「今天」是哪天，不注入就只能回答「无法确定当前日期」。
+  /// 默认开启；用户可以关掉，但关掉后日期类问题会退回到猜测。
+  final bool injectCurrentTime;
 
   /// 实际用于搜索的 Key：优先专用 Key，否则复用 DeepSeek 那家的
   String get effectiveSearchApiKey {
@@ -249,6 +257,7 @@ class AppSettings {
     bool? thinkingEnabled,
     String? reasoningEffort,
     String? imageDetail,
+    bool? injectCurrentTime,
   }) {
     return AppSettings(
       savedModels: {
@@ -280,6 +289,7 @@ class AppSettings {
       thinkingEnabled: thinkingEnabled ?? this.thinkingEnabled,
       reasoningEffort: reasoningEffort ?? this.reasoningEffort,
       imageDetail: imageDetail ?? this.imageDetail,
+      injectCurrentTime: injectCurrentTime ?? this.injectCurrentTime,
     );
   }
 
@@ -307,6 +317,7 @@ class AppSettings {
     'thinkingEnabled': thinkingEnabled,
     'reasoningEffort': reasoningEffort,
     'imageDetail': imageDetail,
+    'injectCurrentTime': injectCurrentTime,
   };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
@@ -349,6 +360,10 @@ class AppSettings {
       imageDetail: imageDetailOptions.contains(json['imageDetail'])
           ? json['imageDetail'] as String
           : '',
+      // 缺失时默认开启：升级用户也能立刻获得正确的日期回答
+      injectCurrentTime: json['injectCurrentTime'] is bool
+          ? json['injectCurrentTime'] as bool
+          : true,
     );
   }
 

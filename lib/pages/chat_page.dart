@@ -175,6 +175,13 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     await settings.updateSearch(enabled: !settings.settings.searchEnabled);
   }
 
+  /// 深度思考快捷开关（仅 DeepSeek）。与设置页共用同一字段，改一处同步另一处。
+  Future<void> _toggleThinking(AppSettingsProvider settings) async {
+    await settings.updateModelBehaviour(
+      thinkingEnabled: !settings.settings.thinkingEnabled,
+    );
+  }
+
   Future<void> _pickImages() async {
     try {
       final List<ChatAttachment> picked = await _attachments.pickImages(
@@ -571,6 +578,10 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                                 searchAvailable: appearance.canSearch,
                                 isSearching: chat.isSearching,
                                 onToggleSearch: () => _toggleSearch(settings),
+                                thinkingEnabled: appearance.thinkingEnabled,
+                                thinkingAvailable:
+                                    appearance.providerId == 'deepseek',
+                                onToggleThinking: () => _toggleThinking(settings),
                               ),
                             ),
                           ),

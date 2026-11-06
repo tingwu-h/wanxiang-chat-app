@@ -328,13 +328,17 @@ class ChatProvider extends ChangeNotifier {
 
     // 生效提示词：会话专属 > 全局默认；再把检索资料附在后面
     final String basePrompt = effectiveSystemPrompt(settings);
-    final String combinedPrompt = searchContext.isEmpty
-        ? basePrompt
-        : (basePrompt.trim().isEmpty
-              ? searchContext
-              : '${basePrompt.trim()}\n\n$searchContext');
+    // 模型不知道「今天」是哪天。不注入的话，问日期只能回答「无法确定」。
+    final String dateLine = settings.injectCurrentTime
+        ? _currentTimeLine(searchEnabled: settings.searchEnabled)
+        : '';
+    final List<String> parts = <String>[
+      if (dateLine.isNotEmpty) dateLine,
+      if (basePrompt.trim().isNotEmpty) basePrompt.trim(),
+      if (searchContext.isNotEmpty) searchContext,
+    ];
     final AppSettings effectiveSettings = settings.copyWith(
-      systemPrompt: combinedPrompt,
+      systemPrompt: parts.join('\n\n'),
     );
 
     bool receivedAny = false;
@@ -473,6 +477,27 @@ class ChatProvider extends ChangeNotifier {
     if (_error == null) return;
     _error = null;
     notifyListeners();
+  }
+
+  /// 生成「当前时间」提示行。
+  ///
+  /// 模型的知识有截止时间，本身不知道今天是哪天；
+  /// 不告诉它，像「今天几号」这种问题只能得到「无法确定」。
+  static String _currentTimeLine({required bool searchEnabled}) {
+    final DateTime now = DateTime.now();
+    String two(int v) => v.toString().padLeft(2, '0');
+    const List<String> weekdays = <String>['一', '二', '三', '四', '五', '六', '日'];
+    final String weekday = weekdays[now.weekday - 1];
+    final String stamp =
+        '${now.year}-${two(now.month)}-${two(now.day)} '
+        '${two(now.hour)}:${two(now.minute)}';
+    final StringBuffer sb = StringBuffer();
+    sb.write('当前时间是 $stamp（星期$weekday，设备本地时间）。');
+    sb.write('涉及日期、星期、时间的问题请以此为准，直接回答，不要声称无法确定当前日期。');
+    if (!searchEnabled) {
+      sb.write('若问题涉及需要实时检索的信息，请明确说明需要开启联网搜索，不要含糊其辞。');
+    }
+    return sb.toString();
   }
 
   /// 把非 [DeepSeekException] 的底层异常翻译成用户看得懂的中文。

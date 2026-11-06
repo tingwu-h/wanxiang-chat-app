@@ -344,6 +344,11 @@ const _labels = <String, (String, String)>{
     'Web search needs a DeepSeek API key. Add one in Settings first.',
   ),
   '来源': ('來源', 'Sources'),
+  '来源（{count} 条，点击展开）': (
+    '來源（{count} 則，點擊展開）',
+    'Sources ({count}) — tap to expand',
+  ),
+  '来源（点击收起）': ('來源（點擊收合）', 'Sources — tap to collapse'),
   '本会话提示词': ('本對話提示詞', 'This chat’s system prompt'),
   '未单独设置（沿用默认）': ('未單獨設定（沿用預設）', 'Not set (uses default)'),
   '已单独设置': ('已單獨設定', 'Customised'),
@@ -399,5 +404,38 @@ const _labels = <String, (String, String)>{
   '联网搜索需要先填写 DeepSeek 的 API Key': (
     '聯網搜尋需要先填寫 DeepSeek 的 API Key',
     'Web search requires a DeepSeek API key.',
+  ),
+
+  // ---------- v1.4.1：深度思考快捷开关、模型行为页、时间注入 ----------
+  '深度思考': ('深度思考', 'Deep thinking'),
+  '深度思考：已开启（点击关闭）': (
+    '深度思考：已開啟（點擊關閉）',
+    'Deep thinking: on (tap to turn off)',
+  ),
+  '深度思考：已关闭（点击开启）': (
+    '深度思考：已關閉（點擊開啟）',
+    'Deep thinking: off (tap to turn on)',
+  ),
+  '模型行为': ('模型行為', 'Model behaviour'),
+  '深度思考、推理强度、图片档位与时间注入': (
+    '深度思考、推理強度、圖片等級與時間注入',
+    'Thinking, effort, image detail and time injection',
+  ),
+  '仅 DeepSeek 模型支持此开关': (
+    '僅 DeepSeek 模型支援此開關',
+    'Only DeepSeek models support this switch',
+  ),
+  '推理强度仅对 DeepSeek 生效': (
+    '推理強度僅對 DeepSeek 生效',
+    'Reasoning effort only applies to DeepSeek',
+  ),
+  '自动告知当前时间': ('自動告知目前時間', 'Tell the model the current time'),
+  '模型本身不知道今天是哪天，开启后日期类问题才能准确回答': (
+    '模型本身不知道今天是哪天，開啟後日期類問題才能準確回答',
+    'Models do not know today’s date; enable this for accurate date answers.',
+  ),
+  '思考模式、推理强度、图片档位与时间注入已移到「模型行为」页面': (
+    '思考模式、推理強度、圖片等級與時間注入已移到「模型行為」頁面',
+    'Thinking, effort, image detail and time injection moved to Model behaviour.',
   ),
 };

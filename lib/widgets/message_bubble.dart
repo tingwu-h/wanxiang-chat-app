@@ -63,6 +63,10 @@ class _MessageBubbleState extends State<MessageBubble> {
   /// 当前选中的文字（由 onSelectionChanged 维护）
   String _selectedText = '';
 
+  /// 来源列表是否展开。默认收起——一条回答可能引用五六条来源，
+  /// 全摊开会把正文挤得很长，和思考过程同一个道理。
+  bool _sourcesExpanded = false;
+
   ChatMessage get message => widget.message;
   (String, ThemeData, Color)? _markdownInputs;
   Widget? _markdown;
@@ -346,58 +350,94 @@ class _MessageBubbleState extends State<MessageBubble> {
   Widget _buildSources(BuildContext context, Color textColor) {
     final ThemeData theme = Theme.of(context);
     final ColorScheme scheme = theme.colorScheme;
+    final int count = message.sources.length;
+    // 和思考过程保持一致的呈现：默认收起，只留一行可点的标题。
+    // 一条回答可能引用五六条来源，全摊开会把正文挤得很长。
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: scheme.surface.withValues(alpha: 0.45),
         borderRadius: BorderRadius.circular(8),
+        border: Border(
+          left: BorderSide(color: scheme.outlineVariant, width: 2),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Row(
-            children: <Widget>[
-              Icon(Icons.travel_explore, size: 13, color: scheme.primary),
-              const SizedBox(width: 4),
-              Text(
-                tr(context, '来源'),
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: scheme.primary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          for (int i = 0; i < message.sources.length; i++)
-            InkWell(
-              onTap: () => openExternalUrl(context, message.sources[i].url),
-              borderRadius: BorderRadius.circular(6),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 3),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      '[${i + 1}]',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: scheme.primary,
-                      ),
+          InkWell(
+            onTap: () =>
+                setState(() => _sourcesExpanded = !_sourcesExpanded),
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Icon(
+                    Icons.public,
+                    size: 14,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    _sourcesExpanded
+                        ? tr(context, '来源（点击收起）')
+                        : tr(context, '来源（{count} 条，点击展开）', {
+                            'count': count,
+                          }),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
                     ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        '${message.sources[i].displayTitle} · ${message.sources[i].domain}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: textColor.withValues(alpha: 0.85),
-                          decoration: TextDecoration.underline,
+                  ),
+                  const SizedBox(width: 2),
+                  Icon(
+                    _sourcesExpanded ? Icons.expand_less : Icons.expand_more,
+                    size: 16,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_sourcesExpanded)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  for (int i = 0; i < count; i++)
+                    InkWell(
+                      onTap: () =>
+                          openExternalUrl(context, message.sources[i].url),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 3),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              '[${i + 1}]',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: scheme.primary,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                '${message.sources[i].displayTitle} · ${message.sources[i].domain}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: textColor.withValues(alpha: 0.85),
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                  ],
-                ),
+                ],
               ),
             ),
         ],
@@ -406,7 +446,8 @@ class _MessageBubbleState extends State<MessageBubble> {
   }
 
   /// 失败类别对应的小图标；不是三类失败之一时返回 null（用纯文本渲染）
-  IconData? _failureIcon(String? kind) {    switch (kind) {
+  IconData? _failureIcon(String? kind) {
+    switch (kind) {
       case MessageFailure.timeout:
         return Icons.hourglass_disabled_outlined;
       case MessageFailure.network:
