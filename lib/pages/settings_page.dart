@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 
 import 'package:deepseek_chat/models/app_settings.dart';
 import 'package:deepseek_chat/pages/about_page.dart';
+import 'package:deepseek_chat/pages/search_settings_page.dart';
 import 'package:deepseek_chat/utils/app_info.dart';
 import 'package:deepseek_chat/widgets/model_tags.dart';
 import 'package:deepseek_chat/widgets/appearance_settings.dart';
@@ -834,15 +835,41 @@ class _SettingsPageState extends State<SettingsPage> {
                       'value': _temperature.toStringAsFixed(1),
                     }),
                   ),
-                  Slider(
-                    value: _temperature.clamp(0, 2),
-                    min: 0,
-                    max: 2,
-                    divisions: 20,
-                    label: _temperature.toStringAsFixed(1),
-                    onChanged: (value) {
-                      setState(() => _temperature = value);
-                      _changed();
+                  // DeepSeek 思考模式下 temperature 不生效（官方明确），
+                  // 这里置灰并说明，避免用户以为滑块坏了。
+                  Builder(
+                    builder: (BuildContext context) {
+                      final bool disabled =
+                          _draft.providerId == 'deepseek' &&
+                          settings.settings.thinkingEnabled;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          AbsorbPointer(
+                            absorbing: disabled,
+                            child: Opacity(
+                              opacity: disabled ? 0.45 : 1,
+                              child: Slider(
+                                value: _temperature.clamp(0, 2),
+                                min: 0,
+                                max: 2,
+                                divisions: 20,
+                                label: _temperature.toStringAsFixed(1),
+                                onChanged: (value) {
+                                  setState(() => _temperature = value);
+                                  _changed();
+                                },
+                              ),
+                            ),
+                          ),
+                          if (disabled)
+                            Text(
+                              tr(context, '思考模式下温度设置不生效'),
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: scheme.onSurfaceVariant),
+                            ),
+                        ],
+                      );
                     },
                   ),
                   Row(
@@ -913,6 +940,28 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                       );
                     },
+                  ),
+                ],
+              ),
+              _group(
+                'search',
+                Icons.travel_explore,
+                tr(context, '联网搜索'),
+                tr(context, '联网检索、思考模式与图片档位'),
+                [
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.tune),
+                    title: Text(tr(context, '联网搜索与模型行为')),
+                    subtitle: Text(
+                      settings.settings.searchEnabled
+                          ? tr(context, '联网搜索：已开启（点击关闭）')
+                          : tr(context, '联网搜索：已关闭（点击开启）'),
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(
+                      context,
+                    ).pushNamed(SearchSettingsPage.routeName),
                   ),
                 ],
               ),

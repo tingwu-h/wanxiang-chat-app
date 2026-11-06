@@ -15,6 +15,7 @@ class ChatInputBar extends StatefulWidget {
     required this.onStop,
     required this.onPickImages,
     required this.onPickFiles,
+    required this.onTakePhoto,
     required this.onRemoveAttachment,
     required this.isLoading,
     required this.enabled,
@@ -23,6 +24,10 @@ class ChatInputBar extends StatefulWidget {
     this.onClearQuote,
     this.modelSelector,
     this.translucent = false,
+    this.searchEnabled = false,
+    this.onToggleSearch,
+    this.searchAvailable = true,
+    this.isSearching = false,
   });
 
   /// 点击发送（文字已 trim，可能为空串——表示只发附件）
@@ -31,9 +36,10 @@ class ChatInputBar extends StatefulWidget {
   /// 点击停止生成
   final VoidCallback onStop;
 
-  /// 选图片 / 选文件
+  /// 选图片 / 选文件 / 拍照
   final VoidCallback onPickImages;
   final VoidCallback onPickFiles;
+  final VoidCallback onTakePhoto;
 
   /// 移除某个待发送附件
   final ValueChanged<ChatAttachment> onRemoveAttachment;
@@ -54,6 +60,18 @@ class ChatInputBar extends StatefulWidget {
 
   final Widget? modelSelector;
   final bool translucent;
+
+  /// 联网搜索开关状态（与设置页联动）
+  final bool searchEnabled;
+
+  /// 点击联网开关
+  final VoidCallback? onToggleSearch;
+
+  /// 是否具备联网条件（配了 DeepSeek Key）；false 时开关置灰
+  final bool searchAvailable;
+
+  /// 正在检索中，显示「正在搜索…」
+  final bool isSearching;
 
   @override
   State<ChatInputBar> createState() => _ChatInputBarState();
@@ -140,6 +158,8 @@ class _ChatInputBarState extends State<ChatInputBar> {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: <Widget>[
                       _buildAddButton(),
+                      const SizedBox(width: 4),
+                      _buildSearchToggle(),
                       const SizedBox(width: 4),
                       Expanded(
                         child: TextField(
@@ -312,18 +332,70 @@ class _ChatInputBarState extends State<ChatInputBar> {
     );
   }
 
-  Widget _buildAddButton() {
+  /// 联网开关：状态可见、可点、不可用时置灰并说明原因。
+  ///
+  /// 它会即时反映到设置里（由聊天页处理联动），
+  /// 所以这里只负责展示与回调，不自己存状态。
+  Widget _buildSearchToggle() {
     final ColorScheme scheme = Theme.of(context).colorScheme;
+    final bool on = widget.searchEnabled;
+    final bool canTap = widget.searchAvailable && widget.onToggleSearch != null;
+
+    final String tooltip = !widget.searchAvailable
+        ? tr(context, '联网搜索需要 DeepSeek API Key')
+        : on
+        ? tr(context, '联网搜索：已开启（点击关闭）')
+        : tr(context, '联网搜索：已关闭（点击开启）');
+
+    return Tooltip(
+      message: tooltip,
+      child: IconButton(
+        onPressed: canTap ? widget.onToggleSearch : null,
+        iconSize: 20,
+        visualDensity: VisualDensity.compact,
+        icon: widget.isSearching
+            ? SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: scheme.primary,
+                ),
+              )
+            : Icon(
+                on ? Icons.travel_explore : Icons.travel_explore_outlined,
+                color: on
+                    ? scheme.primary
+                    : (widget.searchAvailable
+                          ? scheme.onSurfaceVariant
+                          : scheme.onSurfaceVariant.withValues(alpha: 0.4)),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildAddButton() {    final ColorScheme scheme = Theme.of(context).colorScheme;
     final bool active = widget.enabled && !widget.isLoading;
     return PopupMenuButton<String>(
       clipBehavior: Clip.antiAlias,
       tooltip: tr(context, '添加图片或文件'),
       enabled: active,
       onSelected: (String v) {
+        if (v == 'camera') widget.onTakePhoto();
         if (v == 'image') widget.onPickImages();
         if (v == 'file') widget.onPickFiles();
       },
       itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+        PopupMenuItem<String>(
+          value: 'camera',
+          child: ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.photo_camera_outlined),
+            title: Text(tr(context, '拍照')),
+            subtitle: Text(tr(context, '直接调用相机拍摄')),
+          ),
+        ),
         PopupMenuItem<String>(
           value: 'image',
           child: ListTile(

@@ -164,6 +164,17 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     _showSnack(tr(context, '已引用选中文字，输入问题后发送'));
   }
 
+  /// 联网开关（输入栏快捷入口）。
+  ///
+  /// 与设置页「联网搜索」是同一个字段，改一处另一处立刻同步。
+  Future<void> _toggleSearch(AppSettingsProvider settings) async {
+    if (!settings.settings.canSearch) {
+      _showSnack(tr(context, '联网搜索需要 DeepSeek API Key，请先在设置里填写'));
+      return;
+    }
+    await settings.updateSearch(enabled: !settings.settings.searchEnabled);
+  }
+
   Future<void> _pickImages() async {
     try {
       final List<ChatAttachment> picked = await _attachments.pickImages(
@@ -174,6 +185,20 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       _showSnack(e.message);
     } catch (_) {
       if (mounted) _showSnack(tr(context, '选择图片失败，请重试'));
+    }
+  }
+
+  /// 直接调相机拍照
+  Future<void> _takePhoto() async {    try {
+      final List<ChatAttachment> picked = await _attachments.pickFromCamera(
+        edit: _editImage,
+      );
+      if (picked.isEmpty) return; // 用户取消，不提示
+      await _acceptAttachments(picked);
+    } on AttachmentException catch (e) {
+      _showSnack(e.message);
+    } catch (_) {
+      if (mounted) _showSnack(tr(context, '无法启动相机，请改用「图片」从相册选择'));
     }
   }
 
@@ -278,6 +303,64 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  /// 编辑本会话专属的系统提示词。
+  ///
+  /// 留空表示清除，回到设置页的默认提示词——这样老用户不会突然丢配置。
+  Future<void> _editConversationPrompt(ChatProvider chat) async {
+    final TextEditingController controller = TextEditingController(
+      text: chat.activeSystemPrompt,
+    );
+    final String? result = await showDialog<String>(
+      context: context,
+      builder: (BuildContext ctx) => AlertDialog(
+        title: Text(tr(ctx, '本会话提示词')),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            TextField(
+              controller: controller,
+              autofocus: true,
+              minLines: 4,
+              maxLines: 8,
+              maxLength: 4000,
+              decoration: InputDecoration(
+                hintText: tr(ctx, '例如：你是资深 Flutter 工程师，回答尽量简洁'),
+                helperText: tr(ctx, '留空则沿用设置里的默认提示词'),
+              ),
+            ),
+          ],
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(tr(ctx, '取消')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, ''),
+            child: Text(tr(ctx, '清除')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text),
+            child: Text(tr(ctx, '保存')),
+          ),
+        ],
+      ),
+    );
+    // 弹窗退场动画期间可能仍引用 controller，延后释放
+    WidgetsBinding.instance.addPostFrameCallback((_) => controller.dispose());
+    if (result == null || !mounted) return;
+    await chat.setActiveSystemPrompt(result);
+    if (mounted) {
+      _showSnack(
+        tr(
+          context,
+          result.trim().isEmpty ? '已清除，本会话将使用默认提示词' : '本会话提示词已保存',
+        ),
+      );
+    }
   }
 
   Future<void> _confirmClearCurrent() async {
@@ -448,6 +531,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                         // 没有自定义背景就没有东西可透，
                         // 开磨砂只会白白增加每帧的 GPU 开销。
                         frosted: customBackground,
+                        showSources: appearance.showSources,
                       ),
                     ),
                     Positioned(
@@ -481,7 +565,12 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                                 onStop: chat.stop,
                                 onPickImages: _pickImages,
                                 onPickFiles: _pickFiles,
+                                onTakePhoto: _takePhoto,
                                 onRemoveAttachment: _removePending,
+                                searchEnabled: appearance.searchEnabled,
+                                searchAvailable: appearance.canSearch,
+                                isSearching: chat.isSearching,
+                                onToggleSearch: () => _toggleSearch(settings),
                               ),
                             ),
                           ),
@@ -535,11 +624,26 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                   clipBehavior: Clip.antiAlias,
                   tooltip: tr(context, '对话操作'),
                   onSelected: (String value) {
+                    if (value == 'prompt') _editConversationPrompt(chat);
                     if (value == 'export') _exportCurrentConversation();
                     if (value == 'clear') _confirmClearCurrent();
                   },
                   itemBuilder: (BuildContext context) =>
                       <PopupMenuEntry<String>>[
+                        PopupMenuItem<String>(
+                          value: 'prompt',
+                          child: ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(Icons.tune),
+                            title: Text(tr(context, '本会话提示词')),
+                            subtitle: Text(
+                              chat.activeSystemPrompt.trim().isEmpty
+                                  ? tr(context, '未单独设置（沿用默认）')
+                                  : tr(context, '已单独设置'),
+                            ),
+                          ),
+                        ),
                         PopupMenuItem<String>(
                           value: 'export',
                           enabled: chat.hasMessages && !_exporting,

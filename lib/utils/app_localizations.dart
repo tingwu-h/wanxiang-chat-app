@@ -170,7 +170,6 @@ const _labels = <String, (String, String)>{
   '清空': ('清空', 'Clear'),
   '确定': ('確定', 'OK'),
   '知道了': ('知道了', 'Got it'),
-  '保存': ('儲存', 'Save'),
   '正在保存…': ('正在儲存…', 'Saving…'),
   '保存修改？': ('儲存修改？', 'Save changes?'),
   '还有未保存的设置。': ('還有未儲存的設定。', 'You have unsaved settings.'),
@@ -319,4 +318,86 @@ const _labels = <String, (String, String)>{
     'The service is temporarily unavailable. Retry later or switch models.',
   ),
   '已等待 {seconds} 秒': ('已等待 {seconds} 秒', 'Waiting {seconds}s'),
+
+  // ---------- v1.4.0：拍照、联网搜索、思考模式、每会话提示词 ----------
+  '拍照': ('拍照', 'Take photo'),
+  '直接调用相机拍摄': ('直接呼叫相機拍攝', 'Use the camera directly'),
+  '无法启动相机，请改用「图片」从相册选择': (
+    '無法啟動相機，請改用「圖片」從相簿選擇',
+    'Could not start the camera. Use Images to pick from the gallery instead.',
+  ),
+  '联网搜索': ('聯網搜尋', 'Web search'),
+  '联网搜索：已开启（点击关闭）': (
+    '聯網搜尋：已開啟（點擊關閉）',
+    'Web search: on (tap to turn off)',
+  ),
+  '联网搜索：已关闭（点击开启）': (
+    '聯網搜尋：已關閉（點擊開啟）',
+    'Web search: off (tap to turn on)',
+  ),
+  '联网搜索需要 DeepSeek API Key': (
+    '聯網搜尋需要 DeepSeek API Key',
+    'Web search needs a DeepSeek API key',
+  ),
+  '联网搜索需要 DeepSeek API Key，请先在设置里填写': (
+    '聯網搜尋需要 DeepSeek API Key，請先在設定裡填寫',
+    'Web search needs a DeepSeek API key. Add one in Settings first.',
+  ),
+  '来源': ('來源', 'Sources'),
+  '本会话提示词': ('本對話提示詞', 'This chat’s system prompt'),
+  '未单独设置（沿用默认）': ('未單獨設定（沿用預設）', 'Not set (uses default)'),
+  '已单独设置': ('已單獨設定', 'Customised'),
+  '保存': ('儲存', 'Save'),
+  '清除': ('清除', 'Clear'),
+  '本会话提示词已保存': ('本對話提示詞已儲存', 'System prompt saved'),
+  '已清除，本会话将使用默认提示词': (
+    '已清除，本對話將使用預設提示詞',
+    'Cleared. This chat will use the default prompt.',
+  ),
+  '例如：你是资深 Flutter 工程师，回答尽量简洁': (
+    '例如：你是資深 Flutter 工程師，回答盡量簡潔',
+    'e.g. You are a senior Flutter engineer. Keep answers concise.',
+  ),
+  '留空则沿用设置里的默认提示词': (
+    '留空則沿用設定裡的預設提示詞',
+    'Leave empty to use the default prompt from Settings.',
+  ),
+  '启用联网搜索': ('啟用聯網搜尋', 'Enable web search'),
+  '搜索用 API Key': ('搜尋用 API Key', 'Search API key'),
+  '留空则复用 DeepSeek 服务商的 Key': (
+    '留空則複用 DeepSeek 服務商的 Key',
+    'Leave empty to reuse the DeepSeek provider key',
+  ),
+  '结果条数': ('結果數量', 'Results'),
+  '抓取正文': ('擷取正文', 'Fetch page content'),
+  '抓取正文会让回答更准，但会额外产生搜索接口调用': (
+    '擷取正文會讓回答更準，但會額外產生搜尋介面呼叫',
+    'Fetching pages improves accuracy but adds extra search API calls.',
+  ),
+  '显示来源链接': ('顯示來源連結', 'Show source links'),
+  '联网搜索会收取费用：约每千次成功请求 0.75 美元': (
+    '聯網搜尋會收取費用：約每千次成功請求 0.75 美元',
+    'Web search is billed at about \$0.75 per 1,000 successful requests.',
+  ),
+  '使用联网搜索时，你的问题会发送给 DeepSeek 搜索服务': (
+    '使用聯網搜尋時，你的問題會傳送給 DeepSeek 搜尋服務',
+    'With web search on, your question is sent to the DeepSeek search service.',
+  ),
+  '思考模式': ('思考模式', 'Thinking mode'),
+  '开启后模型会先输出推理过程，更慢但通常更准': (
+    '開啟後模型會先輸出推理過程，較慢但通常較準',
+    'The model reasons before answering: slower, usually more accurate.',
+  ),
+  '推理强度': ('推理強度', 'Reasoning effort'),
+  '图片细节档位': ('圖片細節等級', 'Image detail'),
+  '低（更快更省）': ('低（更快更省）', 'Low (faster, cheaper)'),
+  '原始': ('原始', 'Original'),
+  '思考模式下温度设置不生效': (
+    '思考模式下溫度設定不生效',
+    'Temperature has no effect while thinking mode is on.',
+  ),
+  '联网搜索需要先填写 DeepSeek 的 API Key': (
+    '聯網搜尋需要先填寫 DeepSeek 的 API Key',
+    'Web search requires a DeepSeek API key.',
+  ),
 };

@@ -90,6 +90,39 @@ class AppSettingsProvider extends ChangeNotifier {
     ),
   );
 
+  /// 更新联网搜索相关设置。
+  ///
+  /// 单独成一个方法，是为了让设置页和聊天页的快捷开关
+  /// 走同一条写入路径——两边联动，不会出现状态不一致。
+  Future<void> updateSearch({
+    bool? enabled,
+    String? apiKey,
+    int? count,
+    bool? fetch,
+    bool? showSources,
+  }) => replace(
+    _settings.copyWith(
+      searchEnabled: enabled,
+      searchApiKey: apiKey,
+      searchCount: count,
+      searchFetch: fetch,
+      showSources: showSources,
+    ),
+  );
+
+  /// 更新思考模式 / 推理强度 / 图片档位
+  Future<void> updateModelBehaviour({
+    bool? thinkingEnabled,
+    String? reasoningEffort,
+    String? imageDetail,
+  }) => replace(
+    _settings.copyWith(
+      thinkingEnabled: thinkingEnabled,
+      reasoningEffort: reasoningEffort,
+      imageDetail: imageDetail,
+    ),
+  );
+
   /// 一键恢复默认（会同时清空 API Key）
   Future<void> resetToDefaults() => replace(AppSettings());
 }

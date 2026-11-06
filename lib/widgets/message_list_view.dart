@@ -23,6 +23,7 @@ class MessageListView extends StatefulWidget {
     this.onFollowUp,
     this.bubbleOpacity = AppSettings.defaultBubbleOpacity,
     this.frosted = false,
+    this.showSources = true,
   });
 
   final List<ChatMessage> messages;
@@ -42,6 +43,9 @@ class MessageListView extends StatefulWidget {
 
   /// 是否给气泡加磨砂玻璃（只在实际有自定义背景时才值得开）
   final bool frosted;
+
+  /// 是否显示联网来源
+  final bool showSources;
 
   @override
   State<MessageListView> createState() => _MessageListViewState();
@@ -119,6 +123,7 @@ class _MessageListViewState extends State<MessageListView> {
               bubbleOpacity: widget.bubbleOpacity,
               frosted: widget.frosted,
               onFollowUp: widget.onFollowUp,
+              showSources: widget.showSources,
             );
           },
         ),

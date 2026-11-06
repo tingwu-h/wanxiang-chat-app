@@ -16,8 +16,6 @@ const providerCatalog = <ProviderPreset>[
   ProviderPreset('deepseek', 'DeepSeek', 'https://api.deepseek.com', [
     'deepseek-flash',
     'deepseek-v4-pro',
-    'deepseek-chat',
-    'deepseek-reasoner',
   ], 'https://platform.deepseek.com'),
   ProviderPreset(
     'openai',

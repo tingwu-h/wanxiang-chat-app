@@ -7,14 +7,24 @@ import 'package:deepseek_chat/models/chat_attachment.dart';
 import 'package:deepseek_chat/models/chat_message.dart';
 import 'package:deepseek_chat/models/conversation.dart';
 import 'package:deepseek_chat/services/deepseek_service.dart';
+import 'package:deepseek_chat/services/search_service.dart';
 import 'package:deepseek_chat/services/storage_service.dart';
 
 /// 对话状态：多会话管理 + 流式接收 + 中断控制 + 本地持久化。
 class ChatProvider extends ChangeNotifier {
-  ChatProvider({required this._api, required this._storage});
+  ChatProvider({
+    required this._api,
+    required this._storage,
+    SearchService? search,
+  }) : _search = search ?? SearchService();
 
   final ChatService _api;
   final StorageService _storage;
+  final SearchService _search;
+
+  /// 正在联网检索（用于界面显示「正在搜索…」）
+  bool _searching = false;
+  bool get isSearching => _searching;
 
   /// 全部会话
   final List<Conversation> _conversations = <Conversation>[];
@@ -41,6 +51,7 @@ class ChatProvider extends ChangeNotifier {
   void _cancelRequest() {
     _activeToken++;
     _loading = false;
+    _searching = false;
     _api.cancel();
     final subscription = _subscription;
     _subscription = null;
@@ -63,6 +74,7 @@ class ChatProvider extends ChangeNotifier {
   void dispose() {
     _cancelRequest();
     _api.dispose();
+    _search.dispose();
     _disposed = true;
     super.dispose();
   }
@@ -96,6 +108,28 @@ class ChatProvider extends ChangeNotifier {
 
   /// 当前会话标题（顶栏显示）
   String get activeTitle => _active?.title ?? '新对话';
+
+  /// 当前会话自己的系统提示词（空表示沿用全局默认）
+  String get activeSystemPrompt => _active?.systemPrompt ?? '';
+
+  /// 修改当前会话的系统提示词。传空串表示清除，回到全局默认。
+  Future<void> setActiveSystemPrompt(String prompt) async {
+    final Conversation? conv = _active;
+    if (conv == null) return;
+    final String trimmed = prompt.trim();
+    conv.systemPrompt = trimmed.isEmpty ? null : trimmed;
+    notifyListeners();
+    await _persist(conv);
+  }
+
+  /// 实际生效的系统提示词：会话优先，其次全局默认。
+  ///
+  /// 这样老数据（会话没有这个字段）行为保持不变，
+  /// 用户也不会因为改了某处而突然丢失提示词。
+  String effectiveSystemPrompt(AppSettings settings) {
+    final String own = (activeSystemPrompt).trim();
+    return own.isNotEmpty ? own : settings.systemPrompt;
+  }
 
   bool get isLoading => _loading;
   String? get error => _error;
@@ -256,6 +290,53 @@ class ChatProvider extends ChangeNotifier {
         .where((ChatMessage m) => !identical(m, assistant))
         .toList();
 
+    // ---------------- 联网检索（可开关，与对话模型无关）----------------
+    // 只有开关打开且配了 Key 才搜；搜失败不阻断回答（降级为无联网）。
+    String searchContext = '';
+    String? searchWarning;
+    if (settings.searchEnabled) {
+      if (!settings.canSearch) {
+        searchWarning = '未配置 DeepSeek API Key，本次未联网。';
+      } else if (content.isNotEmpty) {
+        _searching = true;
+        notifyListeners();
+        try {
+          final SearchOutcome outcome = await _search.search(
+            apiKey: settings.effectiveSearchApiKey,
+            query: content,
+            oriQuestion: content,
+            count: settings.searchCount,
+            fetchContent: settings.searchFetch,
+          );
+          if (token != _activeToken) return; // 期间被停止/切换
+          searchContext = outcome.contextText;
+          assistant.sources = outcome.sources;
+          if (outcome.isEmpty) {
+            searchWarning = '未检索到相关资料，本次按无联网回答。';
+          }
+        } catch (e) {
+          if (token != _activeToken) return;
+          searchWarning = e is DeepSeekException
+              ? '联网搜索失败（${e.message}），本次按无联网回答。'
+              : '联网搜索失败，本次按无联网回答。';
+        } finally {
+          _searching = false;
+          if (!_disposed) notifyListeners();
+        }
+      }
+    }
+
+    // 生效提示词：会话专属 > 全局默认；再把检索资料附在后面
+    final String basePrompt = effectiveSystemPrompt(settings);
+    final String combinedPrompt = searchContext.isEmpty
+        ? basePrompt
+        : (basePrompt.trim().isEmpty
+              ? searchContext
+              : '${basePrompt.trim()}\n\n$searchContext');
+    final AppSettings effectiveSettings = settings.copyWith(
+      systemPrompt: combinedPrompt,
+    );
+
     bool receivedAny = false;
     // 流式输出时不要每收到一个 chunk 就重建界面：
     // 服务端可能每秒推几十次，每次都重建整棵组件树 + 重解析 Markdown 会明显卡顿。
@@ -278,7 +359,7 @@ class ChatProvider extends ChangeNotifier {
     });
     try {
       _subscription = _api
-          .streamChat(settings: settings, history: context)
+          .streamChat(settings: effectiveSettings, history: context)
           .listen(
             (chunk) {
               if (chunk.done) {
@@ -324,6 +405,10 @@ class ChatProvider extends ChangeNotifier {
         assistant.content = '（模型没有返回内容，请重试或换一个模型）';
         assistant.error = true;
         assistant.failureKind = MessageFailure.provider;
+      }
+      // 联网降级说明：只提示，不把回答标成失败
+      if (finished && searchWarning != null) {
+        _error = searchWarning;
       }
     } catch (e) {
       // 三类失败要分开：超时是「等太久了」，服务商错误是「对方挂了」，

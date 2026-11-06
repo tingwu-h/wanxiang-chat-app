@@ -12,6 +12,7 @@ import 'package:deepseek_chat/models/app_settings.dart';
 import 'package:deepseek_chat/models/chat_attachment.dart';
 import 'package:deepseek_chat/models/chat_message.dart';
 import 'package:deepseek_chat/utils/formatters.dart';
+import 'package:deepseek_chat/utils/link_actions.dart';
 import 'package:deepseek_chat/widgets/typing_indicator.dart';
 import 'package:deepseek_chat/utils/app_localizations.dart';
 
@@ -27,6 +28,7 @@ class MessageBubble extends StatefulWidget {
     this.bubbleOpacity = AppSettings.defaultBubbleOpacity,
     this.frosted = true,
     this.onFollowUp,
+    this.showSources = true,
   });
 
   final ChatMessage message;
@@ -43,6 +45,9 @@ class MessageBubble extends StatefulWidget {
 
   /// 点「追问」时把选中的文字交给聊天页，由它放进输入框
   final ValueChanged<String>? onFollowUp;
+
+  /// 是否显示联网来源（对应用户设置；关闭时联网仍会发生，只是不显示来源）
+  final bool showSources;
 
   @override
   State<MessageBubble> createState() => _MessageBubbleState();
@@ -195,6 +200,11 @@ class _MessageBubbleState extends State<MessageBubble> {
                         const SizedBox(height: 6),
                     ],
                     ..._buildBody(context, theme, textColor, isUser, isError),
+                    if (!isUser && widget.showSources && message.sources.isNotEmpty)
+                      ...<Widget>[
+                        const SizedBox(height: 6),
+                        _buildSources(context, textColor),
+                      ],
                     if (!isUser) ...[
                       const SizedBox(height: 4),
                       Align(
@@ -329,9 +339,74 @@ class _MessageBubbleState extends State<MessageBubble> {
     return <Widget>[_completedMarkdown(theme, textColor)];
   }
 
+  /// 联网来源列表：编号 + 标题，点了用浏览器打开。
+  ///
+  /// 关闭「显示来源」时这个区块不渲染，但联网本身照常发生
+  /// （用户可能只想要更准的回答，不需要看链接）。
+  Widget _buildSources(BuildContext context, Color textColor) {
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: scheme.surface.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Icon(Icons.travel_explore, size: 13, color: scheme.primary),
+              const SizedBox(width: 4),
+              Text(
+                tr(context, '来源'),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: scheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          for (int i = 0; i < message.sources.length; i++)
+            InkWell(
+              onTap: () => openExternalUrl(context, message.sources[i].url),
+              borderRadius: BorderRadius.circular(6),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      '[${i + 1}]',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: scheme.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        '${message.sources[i].displayTitle} · ${message.sources[i].domain}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: textColor.withValues(alpha: 0.85),
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   /// 失败类别对应的小图标；不是三类失败之一时返回 null（用纯文本渲染）
-  IconData? _failureIcon(String? kind) {
-    switch (kind) {
+  IconData? _failureIcon(String? kind) {    switch (kind) {
       case MessageFailure.timeout:
         return Icons.hourglass_disabled_outlined;
       case MessageFailure.network:

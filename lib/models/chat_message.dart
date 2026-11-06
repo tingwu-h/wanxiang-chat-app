@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:deepseek_chat/models/chat_attachment.dart';
+import 'package:deepseek_chat/models/chat_source.dart';
 
 /// 消息失败类别（v1.3.4 起）。
 ///
@@ -40,8 +41,10 @@ class ChatMessage {
     this.model,
     this.thinking = '',
     List<ChatAttachment>? attachments,
+    List<ChatSource>? sources,
   }) : timestamp = timestamp ?? DateTime.now(),
-       attachments = attachments ?? <ChatAttachment>[];
+       attachments = attachments ?? <ChatAttachment>[],
+       sources = sources ?? <ChatSource>[];
 
   /// 便捷构造：用户消息
   ChatMessage.user(String content, {List<ChatAttachment>? attachments})
@@ -80,6 +83,11 @@ class ChatMessage {
   /// 附件（图片 / 文本类文件）。只有用户消息会有。
   final List<ChatAttachment> attachments;
 
+  /// 本条回答引用的联网来源。只有助手消息可能非空。
+  ///
+  /// 存在消息里而不是内存里，是为了重开应用后来源仍然可见。
+  List<ChatSource> sources;
+
   /// 模型的思考过程（`reasoning_content`）。
   ///
   /// 必须和 [content] 分开存：思考内容是给用户「想看才看」的，
@@ -107,13 +115,17 @@ class ChatMessage {
   /// 发送给 API 的 JSON（带附件时用 block 数组）。
   ///
   /// 官方限制：图片只能出现在 user 消息里，且 content 必须是块数组。
-  Future<Map<String, dynamic>> toApiJsonWithAttachments() async {
+  ///
+  /// [imageDetail] 透传给图片块（'' / low / original）。
+  Future<Map<String, dynamic>> toApiJsonWithAttachments({
+    String imageDetail = '',
+  }) async {
     final List<Map<String, dynamic>> blocks = <Map<String, dynamic>>[];
     if (content.trim().isNotEmpty) {
       blocks.add(<String, dynamic>{'type': 'text', 'text': content});
     }
     for (final ChatAttachment a in attachments) {
-      final Map<String, dynamic>? b = await a.toApiBlock();
+      final Map<String, dynamic>? b = await a.toApiBlock(detail: imageDetail);
       if (b != null) blocks.add(b);
     }
     return <String, dynamic>{'role': role, 'content': blocks};
@@ -128,6 +140,7 @@ class ChatMessage {
     'error': error,
     if (hasFailureKind) 'failureKind': failureKind,
     if (thinking.isNotEmpty) 'thinking': thinking,
+    if (sources.isNotEmpty) 'sources': ChatSource.listToJson(sources),
     if (attachments.isNotEmpty)
       'attachments': attachments.map((ChatAttachment a) => a.toJson()).toList(),
   };
@@ -149,6 +162,7 @@ class ChatMessage {
       providerId: json['providerId'] as String?,
       model: json['model'] as String?,
       thinking: (json['thinking'] as String?) ?? '',
+      sources: ChatSource.listFromJson(json['sources']),
       attachments: rawA
           .whereType<Map<String, dynamic>>()
           .map(ChatAttachment.fromJson)

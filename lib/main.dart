@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:deepseek_chat/pages/about_page.dart';
+import 'package:deepseek_chat/pages/search_settings_page.dart';
 import 'package:deepseek_chat/pages/chat_page.dart';
 import 'package:deepseek_chat/pages/settings_page.dart';
 import 'package:deepseek_chat/providers/app_settings_provider.dart';
@@ -91,6 +92,7 @@ class DeepSeekChatApp extends StatelessWidget {
             home: const ChatPage(),
             routes: <String, WidgetBuilder>{
               SettingsPage.routeName: (_) => const SettingsPage(),
+              SearchSettingsPage.routeName: (_) => const SearchSettingsPage(),
               AboutPage.routeName: (_) => const AboutPage(),
             },
           );

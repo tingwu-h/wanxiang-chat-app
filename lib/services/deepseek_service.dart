@@ -165,6 +165,7 @@ class DeepSeekService implements ChatService {
   Future<List<Map<String, dynamic>>> buildApiMessages(
     List<ChatMessage> history, {
     String? systemPrompt,
+    String imageDetail = '',
   }) async {
     final List<Map<String, dynamic>> result = <Map<String, dynamic>>[];
     final attachments = history
@@ -201,7 +202,9 @@ class DeepSeekService implements ChatService {
       if (m.attachments.isEmpty) {
         result.add(m.toApiJson());
       } else {
-        result.add(await m.toApiJsonWithAttachments());
+        result.add(
+          await m.toApiJsonWithAttachments(imageDetail: imageDetail),
+        );
       }
     }
     return result;
@@ -241,6 +244,7 @@ class DeepSeekService implements ChatService {
     final List<Map<String, dynamic>> messages = await buildApiMessages(
       history,
       systemPrompt: settings.systemPrompt,
+      imageDetail: settings.imageDetail,
     );
     if (messages.isEmpty) {
       throw DeepSeekException('没有可发送的内容。');
@@ -415,6 +419,7 @@ class DeepSeekService implements ChatService {
     final List<Map<String, dynamic>> apiMessages = await buildApiMessages(
       history,
       systemPrompt: settings.systemPrompt,
+      imageDetail: settings.imageDetail,
     );
 
     if (!settings.supportsImages &&

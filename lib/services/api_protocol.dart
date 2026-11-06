@@ -69,7 +69,8 @@ class ApiProtocol {
       case 'anthropic':
         return {
           'model': s.model,
-          'max_tokens': 4096,
+          // 4096 会把长回答截断（官方最大输出 384K）；8192 兼容性较好。
+          'max_tokens': 8192,
           'stream': stream,
           if (system.isNotEmpty) 'system': system,
           'messages': turns
@@ -149,9 +150,21 @@ class ApiProtocol {
         };
       default:
         return {
-          'model': s.model, 'messages': messages, 'stream': stream,
-          // Reasoning models can reject user-supplied sampling parameters.
-          if (!['openai', 'kimi', 'glm', 'xai'].contains(s.providerId))
+          'model': s.model,
+          'messages': messages,
+          'stream': stream,
+          // DeepSeek 思考模式：官方用 thinking.type 开关，reasoning_effort 控强度。
+          // 官方默认开启思考模式，所以缺省状态与官方一致。
+          if (s.providerId == 'deepseek') ...<String, dynamic>{
+            'thinking': <String, dynamic>{
+              'type': s.thinkingEnabled ? 'enabled' : 'disabled',
+            },
+            'reasoning_effort': s.reasoningEffort,
+          },
+          // 官方明确：思考模式下 temperature 不生效（不报错但无效果）。
+          // 因此只在思考模式关闭时才发送，避免出现「拖了滑块却没反应」的假开关。
+          if (!<String>['openai', 'kimi', 'glm', 'xai'].contains(s.providerId) &&
+              !s.isThinkingActive)
             'temperature': s.temperature,
         };
     }

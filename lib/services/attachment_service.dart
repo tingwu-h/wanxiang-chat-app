@@ -91,6 +91,35 @@ class AttachmentService {
   /// 单个文本文件最多读多少字符（避免把接口撑爆）
   static const int maxTextChars = 60000;
 
+  /// 直接调起相机拍照（单张）。
+  ///
+  /// 说明：Android 侧用的是系统相机 Intent，**不需要 CAMERA 权限**；
+  /// 反过来说，如果 Manifest 里声明了 CAMERA 权限，系统会要求运行时申请，
+  /// 反而多出一套权限流程。所以这里刻意不申请权限。
+  Future<List<ChatAttachment>> pickFromCamera({
+    required Future<File?> Function(String) edit,
+  }) async {
+    final XFile? shot = await _picker.pickImage(
+      source: ImageSource.camera,
+      maxWidth: 1600,
+      maxHeight: 1600,
+      imageQuality: 85,
+    );
+    // 用户取消拍照：返回空列表，不当作错误
+    if (shot == null) return <ChatAttachment>[];
+
+    final File? saved = await edit(shot.path);
+    if (saved == null) return <ChatAttachment>[];
+    return <ChatAttachment>[
+      ChatAttachment(
+        name: saved.path.split(RegExp(r'[/\\]')).last,
+        path: saved.path,
+        kind: 'image',
+        size: await saved.length(),
+      ),
+    ];
+  }
+
   /// 选取图片（可多选）
   Future<List<ChatAttachment>> pickImages({
     required Future<File?> Function(String) edit,

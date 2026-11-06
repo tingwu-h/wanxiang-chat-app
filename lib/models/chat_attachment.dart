@@ -62,7 +62,10 @@ class ChatAttachment {
 
   /// 转成 API 需要的 content block。
   /// 读取失败时明确报错，避免界面展示图片但模型实际未收到。
-  Future<Map<String, dynamic>?> toApiBlock() async {
+  ///
+  /// [detail] 为图片细节档位（'' / low / original），空串表示不发送该字段。
+  /// 官方说明：low 会把图缩到 512×512，更快更省 token。
+  Future<Map<String, dynamic>?> toApiBlock({String detail = ''}) async {
     try {
       if (isImage) {
         final File f = File(path);
@@ -82,6 +85,7 @@ class ChatAttachment {
           'type': 'image_url',
           'image_url': <String, dynamic>{
             'url': 'data:${_mimeOf(name)};base64,$b64',
+            if (detail.isNotEmpty) 'detail': detail,
           },
         };
       }
