@@ -116,7 +116,7 @@ void main() {
               enabled: true,
               thinkingAvailable: available,
               thinkingEnabled: enabled,
-              onOpenThinking: () {},
+              onPickThinkingLevel: (_) {},
             ),
           ),
         );
@@ -164,7 +164,7 @@ void main() {
               onToggleSearch: () {},
               thinkingAvailable: thinkingAvailable,
               thinkingEnabled: true,
-              onOpenThinking: () {},
+              onPickThinkingLevel: (_) {},
               modelSelector: modelSelector,
             ),
           ),

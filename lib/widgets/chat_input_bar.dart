@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:deepseek_chat/models/chat_attachment.dart';
+import 'package:deepseek_chat/widgets/thinking_level_popover.dart';
 
 /// 底部输入栏：附件预览 + 多行输入框 + 发送 / 停止按钮。
 class ChatInputBar extends StatefulWidget {
@@ -30,8 +31,9 @@ class ChatInputBar extends StatefulWidget {
     this.isSearching = false,
     this.thinkingEnabled = true,
     this.thinkingAvailable = false,
+    this.thinkingLevel = 2,
     this.thinkingEffort = '',
-    this.onOpenThinking,
+    this.onPickThinkingLevel,
   });
 
   /// 点击发送（文字已 trim，可能为空串——表示只发附件）
@@ -86,8 +88,11 @@ class ChatInputBar extends StatefulWidget {
   /// 当前档位标签（No / Low / High / Max），显示在胶囊文字里
   final String thinkingEffort;
 
-  /// 点击深度思考胶囊：打开四档面板（不是直接开关）
-  final VoidCallback? onOpenThinking;
+  /// 当前档位 0..3（0 = No），用于浮层初始选中项
+  final int thinkingLevel;
+
+  /// 选择档位：点胶囊弹出悬浮框，选中后回调
+  final ValueChanged<int>? onPickThinkingLevel;
 
   @override
   State<ChatInputBar> createState() => _ChatInputBarState();
@@ -98,6 +103,44 @@ class _ChatInputBarState extends State<ChatInputBar> {
   final FocusNode _focusNode = FocusNode();
   bool _hasText = false;
 
+  /// 思考胶囊的锚点：悬浮框跟随这个 link 定位。
+  final LayerLink _thinkingLink = LayerLink();
+  final GlobalKey _thinkingKey = GlobalKey();
+  OverlayEntry? _thinkingEntry;
+
+  void _toggleThinkingPopover() {
+    if (_thinkingEntry != null) {
+      _closeThinkingPopover();
+      return;
+    }
+    final ValueChanged<int>? pick = widget.onPickThinkingLevel;
+    if (pick == null) return;
+
+    // 先收键盘，避免胶囊随输入栏上移时悬浮框跟着抖。
+    FocusManager.instance.primaryFocus?.unfocus();
+    final RenderBox? box =
+        _thinkingKey.currentContext?.findRenderObject() as RenderBox?;
+    final bool showAbove =
+        box == null || box.localToGlobal(Offset.zero).dy > 160;
+
+    _thinkingEntry = ThinkingLevelPopover.show(
+      context: context,
+      link: _thinkingLink,
+      level: widget.thinkingLevel,
+      showAbove: showAbove,
+      onPick: (int level) {
+        _closeThinkingPopover();
+        pick(level);
+      },
+      onDismiss: _closeThinkingPopover,
+    );
+  }
+
+  void _closeThinkingPopover() {
+    _thinkingEntry?.remove();
+    _thinkingEntry = null;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -106,6 +149,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
 
   @override
   void dispose() {
+    _closeThinkingPopover();
     _controller
       ..removeListener(_onTextChanged)
       ..dispose();
@@ -224,28 +268,35 @@ class _ChatInputBarState extends State<ChatInputBar> {
                         ),
                       ),
                       if (widget.thinkingAvailable) ...<Widget>[
-                        _buildModeChip(
-                          key: const ValueKey('mode-chip-thinking'),
-                          icon: widget.thinkingEnabled
-                              ? Icons.psychology
-                              : Icons.psychology_outlined,
-                          // 开启时把档位写进胶囊，避免用户以为只有一个开关；
-                          // 关闭（No）时不加后缀——「思考·No」自相矛盾。
-                          label: widget.thinkingEnabled &&
-                                  widget.thinkingEffort.isNotEmpty
-                              ? '${tr(context, '思考')}·${widget.thinkingEffort}'
-                              : tr(context, '思考'),
-                          value: widget.thinkingEnabled,
-                          enabled: widget.onOpenThinking != null,
-                          onTap: widget.onOpenThinking,
-                          tooltip: tr(
-                            context,
-                            '思考强度：{level}（点击调整）',
-                            <String, Object>{
-                              'level': widget.thinkingEnabled
-                                  ? widget.thinkingEffort
-                                  : 'No',
-                            },
+                        CompositedTransformTarget(
+                          link: _thinkingLink,
+                          child: KeyedSubtree(
+                            key: _thinkingKey,
+                            child: _buildModeChip(
+                              key: const ValueKey('mode-chip-thinking'),
+                              icon: widget.thinkingEnabled
+                                  ? Icons.psychology
+                                  : Icons.psychology_outlined,
+                              // 开启时把档位写进胶囊，避免用户以为只有一个开关；
+                              // 关闭（No）时不加后缀——「思考·No」自相矛盾。
+                              label:
+                                  widget.thinkingEnabled &&
+                                      widget.thinkingEffort.isNotEmpty
+                                  ? '${tr(context, '思考')}·${widget.thinkingEffort}'
+                                  : tr(context, '思考'),
+                              value: widget.thinkingEnabled,
+                              enabled: widget.onPickThinkingLevel != null,
+                              onTap: _toggleThinkingPopover,
+                              tooltip: tr(
+                                context,
+                                '思考强度：{level}（点击调整）',
+                                <String, Object>{
+                                  'level': widget.thinkingEnabled
+                                      ? widget.thinkingEffort
+                                      : 'No',
+                                },
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 6),

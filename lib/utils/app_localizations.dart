@@ -436,11 +436,6 @@ const _labels = <String, (String, String)>{
     '模型本身不知道今天是哪天，開啟後日期類問題才能準確回答',
     'Models do not know today’s date; enable this for accurate date answers.',
   ),
-  '思考模式、推理强度、图片档位与时间注入已移到「模型行为」页面': (
-    '思考模式、推理強度、圖片等級與時間注入已移到「模型行為」頁面',
-    'Thinking, effort, image detail and time injection moved to Model behaviour.',
-  ),
-
   // ---------- v1.4.3：四档思考强度 ----------
   '思考强度': ('思考強度', 'Thinking level'),
   '直接回答，更快更省': (
@@ -455,7 +450,6 @@ const _labels = <String, (String, String)>{
     '思考強度：{level}（點擊調整）',
     'Thinking level: {level} (tap to adjust)',
   ),
-  '完成': ('完成', 'Done'),
   '联网与模型行为': ('聯網與模型行為', 'Web search & model behaviour'),
   '联网检索、模型行为与图片档位': (
     '聯網檢索、模型行為與圖片等級',

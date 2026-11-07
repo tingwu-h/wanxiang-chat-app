@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:deepseek_chat/models/app_settings.dart';
 import 'package:deepseek_chat/services/api_protocol.dart';
 import 'package:deepseek_chat/widgets/chat_input_bar.dart';
-import 'package:deepseek_chat/widgets/thinking_level_sheet.dart';
 import 'package:deepseek_chat/widgets/thinking_level_slider.dart';
 
 void main() {
@@ -141,8 +140,9 @@ void main() {
           enabled: true,
           thinkingAvailable: available,
           thinkingEnabled: enabled,
+          thinkingLevel: enabled ? 2 : 0,
           thinkingEffort: effort,
-          onOpenThinking: () {},
+          onPickThinkingLevel: (_) {},
         ),
       ),
     );
@@ -201,8 +201,9 @@ void main() {
               enabled: true,
               thinkingAvailable: true,
               thinkingEnabled: true,
+              thinkingLevel: 2,
               thinkingEffort: 'High',
-              onOpenThinking: () {},
+              onPickThinkingLevel: (_) {},
               searchEnabled: true,
               searchAvailable: true,
               onToggleSearch: () {},
@@ -212,37 +213,6 @@ void main() {
         ),
       );
       expect(tester.takeException(), isNull);
-    });
-  });
-
-  group('底部面板', () {
-    testWidgets('显示标题、完成按钮与四档，点 Max 生效', (WidgetTester tester) async {
-      final List<int> committed = <int>[];
-      await tester.pumpWidget(
-        MaterialApp(
-          locale: const Locale('zh', 'CN'),
-          home: Scaffold(
-            body: ThinkingLevelSheet(level: 0, onCommit: committed.add),
-          ),
-        ),
-      );
-      // 测试环境默认 en_US，标题按语言可能取中文或英文。
-      expect(
-        find.text('思考强度').evaluate().isNotEmpty ||
-            find.text('Thinking level').evaluate().isNotEmpty,
-        isTrue,
-      );
-      expect(
-        find.text('完成').evaluate().isNotEmpty ||
-            find.text('Done').evaluate().isNotEmpty,
-        isTrue,
-      );
-      expect(find.text('No'), findsOneWidget);
-      expect(find.text('Max'), findsOneWidget);
-
-      await tester.tap(find.text('Max'));
-      await tester.pumpAndSettle();
-      expect(committed.last, 3);
     });
   });
 

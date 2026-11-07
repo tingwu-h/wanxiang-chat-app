@@ -7,14 +7,14 @@
   <p><strong>汇聚多种 AI，让每一次对话都有更多可能。</strong></p>
   <p>源码公开的 Android AI 助手 · 自由选择模型 · 使用自己的 API Key</p>
   <p>
-    <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/download/v1.4.3/wanxiang-v1.4.3.apk">下载 APK</a> ·
-    <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/tag/v1.4.3"><img src="https://img.shields.io/badge/version-v1.4.3-1677FF" alt="版本 v1.4.3"></a>
+    <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/download/v1.4.4/wanxiang-v1.4.4.apk">下载 APK</a> ·
+    <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/tag/v1.4.4"><img src="https://img.shields.io/badge/version-v1.4.4-1677FF" alt="版本 v1.4.4"></a>
     <img src="https://img.shields.io/badge/Android-7.0%2B-16C9B2" alt="Android 7.0 及以上">
     <img src="https://img.shields.io/badge/Built_with-Flutter-28BCEF" alt="使用 Flutter 构建">
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-Non--Commercial-8B5CF6" alt="禁止商业使用"></a>
   </p>
   <p>
-    <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/tag/v1.4.3">v1.4.3 发布页</a> ·
+    <a href="https://github.com/tingwu-h/wanxiang-chat-app/releases/tag/v1.4.4">v1.4.4 发布页</a> ·
     <a href="#preview">界面预览</a> ·
     <a href="#quick-start">开始使用</a> ·
     <a href="#providers">服务商</a> ·
@@ -86,7 +86,7 @@
 
 ## 开始第一段对话
 
-1. 前往 [v1.4.3 发布页](https://github.com/tingwu-h/wanxiang-chat-app/releases/tag/v1.4.3)查看版本说明与可用附件，也可以按下文从源码构建 APK。
+1. 前往 [v1.4.4 发布页](https://github.com/tingwu-h/wanxiang-chat-app/releases/tag/v1.4.4)查看版本说明与可用附件，也可以按下文从源码构建 APK。
 2. 打开**设置 → 模型与服务**，选择服务商并填写自己的 API Key；点击**获取 API Key**可直达官方平台。
 3. 选择模型，或填写账号当前可用的自定义模型 ID；需要时调整 Base URL。
 4. 保存配置，可使用**测试连接**检查接口，然后回到聊天页开始对话。
@@ -97,9 +97,9 @@
 <details>
 <summary><strong>从 DeepSeek 助手升级到万象</strong></summary>
 
-v1.4.3 的构建号为 **25**。为延续已有安装与数据，Android 包名仍为 `com.example.deepseek_chat`，沿用原有签名证书。不要为升级主动卸载旧版；真机覆盖安装与数据保留尚待验证，升级前建议导出重要聊天文字。
+v1.4.4 的构建号为 **26**。为延续已有安装与数据，Android 包名仍为 `com.example.deepseek_chat`，沿用原有签名证书。不要为升级主动卸载旧版；真机覆盖安装与数据保留尚待验证，升级前建议导出重要聊天文字。
 
-内部 Dart 包名、存储键和平台通道保留部分旧名称，用于兼容旧数据；对外品牌统一为**万象**。构建信息、APK 校验值与验证范围见 [v1.4.3 更新说明](docs/1.4.3-更新说明.md)。
+内部 Dart 包名、存储键和平台通道保留部分旧名称，用于兼容旧数据；对外品牌统一为**万象**。构建信息、APK 校验值与验证范围见 [v1.4.4 更新说明](docs/1.4.3-更新说明.md)。
 
 </details>
 

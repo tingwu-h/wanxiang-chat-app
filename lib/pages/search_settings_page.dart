@@ -173,13 +173,6 @@ class _SearchSettingsPageState extends State<SearchSettingsPage> {
               ],
             ),
           ),
-          const SizedBox(height: 20),
-          Text(
-            tr(context, '思考模式、推理强度、图片档位与时间注入已移到「模型行为」页面'),
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: scheme.onSurfaceVariant,
-            ),
-          ),
         ],
       ),
     );
