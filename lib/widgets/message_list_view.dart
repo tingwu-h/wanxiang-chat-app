@@ -24,6 +24,7 @@ class MessageListView extends StatefulWidget {
     this.bubbleOpacity = AppSettings.defaultBubbleOpacity,
     this.frosted = false,
     this.showSources = true,
+    this.searching = false,
   });
 
   final List<ChatMessage> messages;
@@ -46,6 +47,9 @@ class MessageListView extends StatefulWidget {
 
   /// 是否显示联网来源
   final bool showSources;
+
+  /// 是否正在联网检索（只影响最新一条气泡的等待文案）
+  final bool searching;
 
   @override
   State<MessageListView> createState() => _MessageListViewState();
@@ -124,6 +128,7 @@ class _MessageListViewState extends State<MessageListView> {
               frosted: widget.frosted,
               onFollowUp: widget.onFollowUp,
               showSources: widget.showSources,
+              searching: widget.searching,
             );
           },
         ),

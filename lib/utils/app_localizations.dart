@@ -456,4 +456,5 @@ const _labels = <String, (String, String)>{
     'Web search, model behaviour and image detail',
   ),
   '联网搜索设置': ('聯網搜尋設定', 'Web search settings'),
+  '正在联网搜索': ('正在聯網搜尋', 'Searching the web'),
 };

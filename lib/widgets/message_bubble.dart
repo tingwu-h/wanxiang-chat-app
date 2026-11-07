@@ -29,6 +29,7 @@ class MessageBubble extends StatefulWidget {
     this.frosted = true,
     this.onFollowUp,
     this.showSources = true,
+    this.searching = false,
   });
 
   final ChatMessage message;
@@ -48,6 +49,9 @@ class MessageBubble extends StatefulWidget {
 
   /// 是否显示联网来源（对应用户设置；关闭时联网仍会发生，只是不显示来源）
   final bool showSources;
+
+  /// 是否正在联网检索。用于把等待文案从「正在生成回答」换成「正在联网搜索」。
+  final bool searching;
 
   @override
   State<MessageBubble> createState() => _MessageBubbleState();
@@ -298,7 +302,9 @@ class _MessageBubbleState extends State<MessageBubble> {
     if (message.content.isEmpty && widget.showTyping) {
       return <Widget>[
         TypingIndicator(
-          label: tr(context, '正在生成回答'),
+          label: widget.searching
+              ? tr(context, '正在联网搜索')
+              : tr(context, '正在生成回答'),
           waitingLabelBuilder: (int seconds) =>
               tr(context, '已等待 {seconds} 秒', {'seconds': seconds}),
         ),

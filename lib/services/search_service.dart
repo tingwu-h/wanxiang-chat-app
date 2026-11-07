@@ -45,11 +45,28 @@ class SearchService {
   static const String searchPath = '/v1/tools/search';
   static const String fetchPath = '/v1/tools/fetch';
 
-  /// 单条网页正文最多取这么多字，避免把上下文撑爆
-  static const int maxContentChars = 4000;
+  /// 单条网页正文最多取这么多字。
+  ///
+  /// 取 3000 而不是 4000：两篇正文（6000）+ 标题/URL/摘要仍在 8000 以内，
+  /// 不会出现“第二篇被整体截断”，每篇拿到的篇幅也一样。
+  static const int maxContentChars = 3000;
 
   /// 拼进提示词的检索资料总字数上限
-  static const int maxContextChars = 12000;
+  static const int maxContextChars = 8000;
+
+  /// 搜索 / 抓取各自的超时。宁可降级，也不让用户干等几分钟。
+  static const Duration searchTimeout = Duration(seconds: 20);
+  static const Duration fetchTimeout = Duration(seconds: 10);
+
+  /// 低于这个 rerank 分数的结果视为明显不相关（官方：≥1.5 为优质）。
+  /// 取 1.0 是保守值：只丢明显离谱的，避免过滤太狠。
+  static const double minRerankScore = 1.0;
+
+  /// 真正写进 system prompt 的条数；其余只在来源列表里展示。
+  static const int maxInjectedSources = 3;
+
+  /// 一次联网最多抓几篇正文（每条 = 一次额外计费请求）
+  static const int maxFetches = 2;
 
   void dispose() => _client.close();
 
@@ -90,9 +107,17 @@ class SearchService {
       'need_content': false,
     };
 
-    final Map<String, dynamic> json = await _post(key, searchPath, payload);
+    final Map<String, dynamic> json = await _post(
+      key,
+      searchPath,
+      payload,
+      timeout: searchTimeout,
+    );
 
-    final List<ChatSource> sources = <ChatSource>[];
+    // 先保留原始顺序和 rerank 分数，再统一过滤；
+    // 分数缺失按“未知”处理，不参与过滤，避免接口字段变化时把结果全丢。
+    final List<ChatSource> all = <ChatSource>[];
+    final List<double> scores = <double>[];
     final List<String> summaries = <String>[];
     final Object? results = json['results'];
     if (results is List) {
@@ -105,7 +130,8 @@ class SearchService {
         final String summary = (item['summary'] as String?) ?? '';
         final String snippet = (item['snippet'] as String?) ?? '';
         final String siteName = (item['site_name'] as String?) ?? '';
-        sources.add(
+        final Object? rawScore = item['rerank_score'];
+        all.add(
           ChatSource(
             title: title,
             url: url,
@@ -113,29 +139,52 @@ class SearchService {
             siteName: siteName,
           ),
         );
+        scores.add(rawScore is num ? rawScore.toDouble() : double.nan);
         summaries.add(
           summary.isNotEmpty ? summary : (snippet.isNotEmpty ? snippet : title),
         );
       }
     }
 
-    if (sources.isEmpty) {
+    if (all.isEmpty) {
       return const SearchOutcome(sources: <ChatSource>[], contextText: '');
     }
 
+    // 只丢“明显不相关”的结果；如果过滤后一条不剩，就回退用原始顺序，
+    // 否则会出现“明明搜到了却告诉用户没结果”。
+    final List<int> kept = <int>[];
+    for (int i = 0; i < all.length; i++) {
+      final double score = scores[i];
+      if (score.isNaN || score >= minRerankScore) kept.add(i);
+    }
+    final List<int> indexes = kept.isNotEmpty
+        ? kept
+        : List<int>.generate(all.length, (int i) => i);
+    final List<ChatSource> sources = <ChatSource>[
+      for (final int i in indexes) all[i],
+    ];
+
+    // 只有前 N 条会进 prompt；其余仅在来源列表展示。
+    final int injectCount = indexes.length < maxInjectedSources
+        ? indexes.length
+        : maxInjectedSources;
+
     int fetched = 0;
-    final List<String> bodies = <String>[];
+    final Map<int, String> bodies = <int, String>{};
     if (fetchContent) {
-      // 只抓前 N 条，且允许个别失败（抓不到就退回摘要）
-      final int limit = sources.length < 3 ? sources.length : 3;
+      // 只抓会注入的前几条，且允许个别失败（抓不到就退回摘要）
+      final int limit = injectCount < maxFetches ? injectCount : maxFetches;
       for (int i = 0; i < limit; i++) {
         try {
-          final Map<String, dynamic> page = await _post(key, fetchPath, {
-            'url': sources[i].url,
-          });
+          final Map<String, dynamic> page = await _post(
+            key,
+            fetchPath,
+            <String, dynamic>{'url': sources[i].url},
+            timeout: fetchTimeout,
+          );
           final String content = (page['content'] as String?) ?? '';
           if (content.trim().isNotEmpty) {
-            bodies.add(_truncate(content.trim(), maxContentChars));
+            bodies[i] = _truncate(content.trim(), maxContentChars);
             fetched++;
           }
         } catch (_) {
@@ -150,13 +199,15 @@ class SearchService {
     sb.writeln('1. 用 [编号] 标注引用来源，例如「据 [1] 报道…」。');
     sb.writeln('2. 资料不足时明确说明不知道，不要编造。');
     sb.writeln();
-    for (int i = 0; i < sources.length; i++) {
+    for (int i = 0; i < injectCount; i++) {
+      final int index = indexes[i];
       sb.writeln('[${i + 1}] ${sources[i].displayTitle}');
       sb.writeln('URL: ${sources[i].url}');
-      if (i < bodies.length && bodies[i].isNotEmpty) {
-        sb.writeln('正文节选: ${bodies[i]}');
+      final String? body = bodies[i];
+      if (body != null && body.isNotEmpty) {
+        sb.writeln('正文节选: $body');
       } else {
-        sb.writeln('摘要: ${summaries[i]}');
+        sb.writeln('摘要: ${summaries[index]}');
       }
       sb.writeln();
     }
@@ -171,8 +222,9 @@ class SearchService {
   Future<Map<String, dynamic>> _post(
     String apiKey,
     String path,
-    Map<String, dynamic> body,
-  ) async {
+    Map<String, dynamic> body, {
+    required Duration timeout,
+  }) async {
     final Uri uri = Uri.parse('${AppSettings.searchBaseUrl}$path');
     final List<int> bytes = utf8.encode(jsonEncode(body));
 
@@ -187,7 +239,7 @@ class SearchService {
             },
             body: bytes,
           )
-          .timeout(DeepSeekService.connectTimeout);
+          .timeout(timeout);
     } on TimeoutException {
       throw DeepSeekException(
         '联网搜索超时，请稍后重试。',

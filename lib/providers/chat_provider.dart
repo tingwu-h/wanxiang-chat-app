@@ -9,6 +9,7 @@ import 'package:deepseek_chat/models/conversation.dart';
 import 'package:deepseek_chat/services/deepseek_service.dart';
 import 'package:deepseek_chat/services/search_service.dart';
 import 'package:deepseek_chat/services/storage_service.dart';
+import 'package:deepseek_chat/utils/search_query.dart';
 
 /// 对话状态：多会话管理 + 流式接收 + 中断控制 + 本地持久化。
 class ChatProvider extends ChangeNotifier {
@@ -301,10 +302,22 @@ class ChatProvider extends ChangeNotifier {
         _searching = true;
         notifyListeners();
         try {
+          // 追问（「为什么」「详细说说」）只带当前句会搜出一堆无关结果，
+          // 这里补上一轮用户问题；自包含的问题仍然只搜当前句。
+          final String? previousQuestion = _previousUserQuestion(conv);
+          final String searchQuery = SearchQueryBuilder.build(
+            current: content,
+            previous: previousQuestion,
+          );
+          final String oriQuestion =
+              previousQuestion != null &&
+                  SearchQueryBuilder.isFollowUp(content)
+              ? previousQuestion
+              : content;
           final SearchOutcome outcome = await _search.search(
             apiKey: settings.effectiveSearchApiKey,
-            query: content,
-            oriQuestion: content,
+            query: searchQuery,
+            oriQuestion: oriQuestion,
             count: settings.searchCount,
             fetchContent: settings.searchFetch,
           );
@@ -342,6 +355,7 @@ class ChatProvider extends ChangeNotifier {
     );
 
     bool receivedAny = false;
+    String? finishReason;
     // 流式输出时不要每收到一个 chunk 就重建界面：
     // 服务端可能每秒推几十次，每次都重建整棵组件树 + 重解析 Markdown 会明显卡顿。
     // 这里按帧节流（约 30fps），视觉上仍是"逐字出现"，但渲染压力降一个量级。
@@ -368,6 +382,10 @@ class ChatProvider extends ChangeNotifier {
             (chunk) {
               if (chunk.done) {
                 if (!done.isCompleted) done.complete();
+                return;
+              }
+              if (chunk.finishReason != null && chunk.finishReason!.isNotEmpty) {
+                finishReason = chunk.finishReason;
                 return;
               }
               if (token != _activeToken || chunk.isEmpty) return;
@@ -402,6 +420,18 @@ class ChatProvider extends ChangeNotifier {
       );
 
       final bool finished = token == _activeToken;
+      if (finished) {
+        _applyFinishReason(assistant, finishReason);
+      }
+      if (finished &&
+          assistant.content.trim().isEmpty &&
+          assistant.hasThinking &&
+          !assistant.error) {
+        // 只有思考、没有正文：原来会静默留一个空白回答，用户完全不知道发生什么
+        assistant.content = '模型只输出了思考过程，没有给出回答。请重试。';
+        assistant.error = true;
+        assistant.failureKind = MessageFailure.provider;
+      }
       if (finished &&
           assistant.content.trim().isEmpty &&
           !assistant.hasThinking) {
@@ -513,6 +543,60 @@ class ChatProvider extends ChangeNotifier {
         return '网络连接失败：请确认手机能正常上网，或稍后重试。';
       default:
         return '服务暂时不可用，请稍后重试或换一个模型。';
+    }
+  }
+
+  /// 上一轮用户问题（跳过刚插入的当前消息和空气泡）。
+  String? _previousUserQuestion(Conversation conv) {
+    for (int i = conv.messages.length - 3; i >= 0; i--) {
+      final ChatMessage m = conv.messages[i];
+      if (m.isUser && m.content.trim().isNotEmpty) return m.content.trim();
+    }
+    return null;
+  }
+
+  /// 把 finish_reason 翻译成用户能理解的结果。
+  ///
+  /// 以前完全不看这个字段：服务端说“被中断 / 资源不足 / 长度截断”时，
+  /// 应用会当成正常结束，正文为空也不报错，看起来就是“没有回答”。
+  void _applyFinishReason(ChatMessage assistant, String? reason) {
+    if (reason == null || reason.isEmpty || reason == 'stop') return;
+
+    if (reason == 'length') {
+      if (assistant.content.trim().isEmpty) {
+        assistant.content = '回答达到长度上限，没有生成正文。请重试或把问题拆小。';
+        assistant.error = true;
+        assistant.failureKind = MessageFailure.provider;
+      } else {
+        assistant.content += '\n\n> ⚠️ 回答达到长度上限，已截断。';
+      }
+      return;
+    }
+
+    if (reason == 'content_filter') {
+      if (assistant.content.trim().isEmpty) {
+        assistant.content = '回答被内容策略过滤，没有生成正文。请换个问法重试。';
+        assistant.error = true;
+        assistant.failureKind = MessageFailure.provider;
+      } else {
+        assistant.content += '\n\n> ⚠️ 部分内容被安全策略过滤。';
+      }
+      return;
+    }
+
+    if (reason == 'aborted' || reason == 'insufficient_system_resource') {
+      final String label = reason == 'aborted'
+          ? '生成被中断'
+          : '服务端推理资源不足';
+      if (assistant.content.trim().isEmpty) {
+        assistant.content = assistant.hasThinking
+            ? '$label，模型只输出了思考过程，没有给出回答。请重试。'
+            : '$label，没有返回内容。请重试。';
+        assistant.error = true;
+        assistant.failureKind = MessageFailure.provider;
+      } else {
+        assistant.content += '\n\n> ⚠️ $label，回答可能不完整。';
+      }
     }
   }
 

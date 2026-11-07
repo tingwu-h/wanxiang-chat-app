@@ -532,6 +532,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                         // 开磨砂只会白白增加每帧的 GPU 开销。
                         frosted: customBackground,
                         showSources: appearance.showSources,
+                        searching: messages.isSearching,
                       ),
                     ),
                     Positioned(

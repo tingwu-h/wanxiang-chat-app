@@ -13,7 +13,12 @@ import 'package:deepseek_chat/services/attachment_service.dart';
 
 /// 流式返回的一小段内容。
 class ChatChunk {
-  const ChatChunk(this.text, {this.thinking = false, this.done = false});
+  const ChatChunk(
+    this.text, {
+    this.thinking = false,
+    this.done = false,
+    this.finishReason,
+  });
   final bool done;
 
   /// 本段的文字（可能为空串，例如只带 finish_reason 的最后一帧）
@@ -21,6 +26,10 @@ class ChatChunk {
 
   /// 是否是 `deepseek-reasoner` 的思维链（reasoning_content）
   final bool thinking;
+
+  /// 服务端结束原因：stop / length / content_filter / aborted /
+  /// insufficient_system_resource。拿到它才能区分“正常结束”和“被中断”。
+  final String? finishReason;
 
   bool get isEmpty => text.isEmpty;
 }
@@ -306,8 +315,12 @@ class DeepSeekService implements ChatService {
       if (thinking is String && thinking.isNotEmpty) {
         yield ChatChunk(thinking, thinking: true);
       }
-      final content = message['content'];
-      if (content is String && content.isNotEmpty) yield ChatChunk(content);
+      final String content = message['content'] as String? ?? '';
+      if (content.isNotEmpty) yield ChatChunk(content);
+      final Object? finish = choices.first['finish_reason'];
+      if (finish is String && finish.isNotEmpty) {
+        yield ChatChunk('', finishReason: finish);
+      }
       return;
     }
 
@@ -386,6 +399,12 @@ class DeepSeekService implements ChatService {
             final String text = message['content'] as String;
             if (text.isNotEmpty) yield ChatChunk(text);
           }
+        }
+
+        // 结束原因：单独发一帧，交给上层决定是否提示截断/中断。
+        final Object? finish = first['finish_reason'];
+        if (finish is String && finish.isNotEmpty) {
+          yield ChatChunk('', finishReason: finish);
         }
       }
     } on TimeoutException {
