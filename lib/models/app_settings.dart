@@ -53,6 +53,34 @@ class AppSettings {
   static const String defaultReasoningEffort = 'high';
   static const List<String> reasoningEfforts = <String>['low', 'high', 'max'];
 
+  /// 四档思考强度的显示标签：0 = 不思考，1..3 对应 low / high / max。
+  ///
+  /// 固定用 No / Low / High / Max，三语都不翻译：它们同时是官方参数值的
+  /// 短写，翻成中文反而和请求体里的值对不上，用户排查时更容易困惑。
+  static const List<String> thinkingLevelLabels = <String>[
+    'No',
+    'Low',
+    'High',
+    'Max',
+  ];
+
+  /// 档位 → reasoningEffort。0 档返回 null，表示「保持上次强度不变」，
+  /// 这样用户滑到 No 再滑回来能恢复原来的档位。
+  static String? effortForLevel(int level) {
+    if (level <= 0) return null;
+    return reasoningEfforts[(level - 1).clamp(0, reasoningEfforts.length - 1)];
+  }
+
+  /// 当前设置落在哪一档（0 = 不思考）。
+  int get thinkingLevel {
+    if (!thinkingEnabled) return 0;
+    final int index = reasoningEfforts.indexOf(reasoningEffort);
+    return index < 0 ? 2 : index + 1;
+  }
+
+  /// 当前档位的标签，供输入栏胶囊显示。
+  String get thinkingLevelLabel => thinkingLevelLabels[thinkingLevel];
+
   /// 图片细节档位；空串表示不发送 detail（等同 original）
   static const List<String> imageDetailOptions = <String>['', 'low', 'original'];
 

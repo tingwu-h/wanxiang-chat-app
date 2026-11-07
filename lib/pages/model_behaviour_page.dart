@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:deepseek_chat/models/app_settings.dart';
 import 'package:deepseek_chat/providers/app_settings_provider.dart';
 import 'package:deepseek_chat/utils/app_localizations.dart';
+import 'package:deepseek_chat/widgets/thinking_level_slider.dart';
 
 /// 模型行为设置：深度思考、推理强度、图片档位、时间注入。
 ///
@@ -51,42 +52,20 @@ class _ModelBehaviourPageState extends State<ModelBehaviourPage> {
         children: <Widget>[
           if (_busy) const LinearProgressIndicator(),
 
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            secondary: const Icon(Icons.psychology),
-            title: Text(tr(context, '深度思考')),
-            subtitle: Text(
-              deepseek
-                  ? tr(context, '开启后模型会先输出推理过程，更慢但通常更准')
-                  : tr(context, '仅 DeepSeek 模型支持此开关'),
-            ),
-            value: s.thinkingEnabled,
-            onChanged: deepseek
-                ? (bool v) => _update(
-                    () => provider.updateModelBehaviour(thinkingEnabled: v),
-                  )
-                : null,
-          ),
-
-          const SizedBox(height: 8),
-          Text(tr(context, '推理强度'), style: theme.textTheme.titleSmall),
+          Text(tr(context, '思考强度'), style: theme.textTheme.titleSmall),
           const SizedBox(height: 4),
-          Wrap(
-            spacing: 8,
-            children: <Widget>[
-              for (final String effort in AppSettings.reasoningEfforts)
-                ChoiceChip(
-                  label: Text(effort),
-                  selected: s.reasoningEffort == effort,
-                  onSelected: deepseek
-                      ? (_) => _update(
-                          () => provider.updateModelBehaviour(
-                            reasoningEffort: effort,
-                          ),
-                        )
-                      : null,
-                ),
-            ],
+          // 与聊天输入栏的「思考」胶囊共用同一个组件：
+          // 四档（No / Low / High / Max）一处定义，两处一致。
+          ThinkingLevelSlider(
+            level: s.thinkingLevel,
+            enabled: deepseek,
+            onCommit: (int level) => _update(
+              () => provider.updateModelBehaviour(
+                thinkingEnabled: level > 0,
+                // 0 档传 null：保留上次强度，滑回开启时恢复原档。
+                reasoningEffort: AppSettings.effortForLevel(level),
+              ),
+            ),
           ),
           if (!deepseek)
             Padding(

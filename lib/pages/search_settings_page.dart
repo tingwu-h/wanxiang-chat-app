@@ -58,7 +58,7 @@ class _SearchSettingsPageState extends State<SearchSettingsPage> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text(tr(context, '联网搜索'))),
+      appBar: AppBar(title: Text(tr(context, '联网搜索设置'))),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: <Widget>[

@@ -19,6 +19,7 @@ import 'package:deepseek_chat/services/platform_service.dart';
 import 'package:deepseek_chat/widgets/chat_input_bar.dart';
 import 'package:deepseek_chat/widgets/conversation_drawer.dart';
 import 'package:deepseek_chat/widgets/message_list_view.dart';
+import 'package:deepseek_chat/widgets/thinking_level_sheet.dart';
 import 'package:deepseek_chat/utils/app_localizations.dart';
 
 /// 主页面：悬浮操作栏、消息列表、悬浮输入框及当前服务商模型选择。
@@ -175,10 +176,26 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     await settings.updateSearch(enabled: !settings.settings.searchEnabled);
   }
 
-  /// 深度思考快捷开关（仅 DeepSeek）。与设置页共用同一字段，改一处同步另一处。
-  Future<void> _toggleThinking(AppSettingsProvider settings) async {
-    await settings.updateModelBehaviour(
-      thinkingEnabled: !settings.settings.thinkingEnabled,
+  /// 深度思考档位面板（仅 DeepSeek）。
+  ///
+  /// 胶囊不再直接开/关，而是打开四档面板：No / Low / High / Max。
+  /// 档位与设置页「模型行为」共用同一字段，改一处另一处立刻同步。
+  Future<void> _openThinkingSheet(AppSettingsProvider settings) async {
+    // 先把键盘收掉，否则面板会被输入法顶到屏幕外。
+    FocusManager.instance.primaryFocus?.unfocus();
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
+      constraints: const BoxConstraints(maxWidth: 520),
+      builder: (BuildContext _) => ThinkingLevelSheet(
+        level: settings.settings.thinkingLevel,
+        onCommit: (int level) => settings.updateModelBehaviour(
+          thinkingEnabled: level > 0,
+          // 0 档传 null：保留上次强度，滑回来能恢复原档。
+          reasoningEffort: AppSettings.effortForLevel(level),
+        ),
+      ),
     );
   }
 
@@ -579,9 +596,11 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                                 isSearching: chat.isSearching,
                                 onToggleSearch: () => _toggleSearch(settings),
                                 thinkingEnabled: appearance.thinkingEnabled,
+                                thinkingEffort: appearance.thinkingLevelLabel,
                                 thinkingAvailable:
                                     appearance.providerId == 'deepseek',
-                                onToggleThinking: () => _toggleThinking(settings),
+                                onOpenThinking: () =>
+                                    _openThinkingSheet(settings),
                               ),
                             ),
                           ),

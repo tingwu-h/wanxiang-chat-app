@@ -440,4 +440,26 @@ const _labels = <String, (String, String)>{
     '思考模式、推理強度、圖片等級與時間注入已移到「模型行為」頁面',
     'Thinking, effort, image detail and time injection moved to Model behaviour.',
   ),
+
+  // ---------- v1.4.3：四档思考强度 ----------
+  '思考强度': ('思考強度', 'Thinking level'),
+  '直接回答，更快更省': (
+    '直接回答，更快更省',
+    'Answers directly — faster and cheaper',
+  ),
+  '先输出推理过程，更慢通常更准': (
+    '先輸出推理過程，更慢通常更準',
+    'Shows reasoning first — slower but usually more accurate',
+  ),
+  '思考强度：{level}（点击调整）': (
+    '思考強度：{level}（點擊調整）',
+    'Thinking level: {level} (tap to adjust)',
+  ),
+  '完成': ('完成', 'Done'),
+  '联网与模型行为': ('聯網與模型行為', 'Web search & model behaviour'),
+  '联网检索、模型行为与图片档位': (
+    '聯網檢索、模型行為與圖片等級',
+    'Web search, model behaviour and image detail',
+  ),
+  '联网搜索设置': ('聯網搜尋設定', 'Web search settings'),
 };

@@ -30,7 +30,8 @@ class ChatInputBar extends StatefulWidget {
     this.isSearching = false,
     this.thinkingEnabled = true,
     this.thinkingAvailable = false,
-    this.onToggleThinking,
+    this.thinkingEffort = '',
+    this.onOpenThinking,
   });
 
   /// 点击发送（文字已 trim，可能为空串——表示只发附件）
@@ -82,8 +83,11 @@ class ChatInputBar extends StatefulWidget {
   /// 当前服务商是否支持深度思考开关；false 时该按钮不显示
   final bool thinkingAvailable;
 
-  /// 点击深度思考开关
-  final VoidCallback? onToggleThinking;
+  /// 当前档位标签（No / Low / High / Max），显示在胶囊文字里
+  final String thinkingEffort;
+
+  /// 点击深度思考胶囊：打开四档面板（不是直接开关）
+  final VoidCallback? onOpenThinking;
 
   @override
   State<ChatInputBar> createState() => _ChatInputBarState();
@@ -225,13 +229,24 @@ class _ChatInputBarState extends State<ChatInputBar> {
                           icon: widget.thinkingEnabled
                               ? Icons.psychology
                               : Icons.psychology_outlined,
-                          label: tr(context, '思考'),
+                          // 开启时把档位写进胶囊，避免用户以为只有一个开关；
+                          // 关闭（No）时不加后缀——「思考·No」自相矛盾。
+                          label: widget.thinkingEnabled &&
+                                  widget.thinkingEffort.isNotEmpty
+                              ? '${tr(context, '思考')}·${widget.thinkingEffort}'
+                              : tr(context, '思考'),
                           value: widget.thinkingEnabled,
-                          enabled: widget.onToggleThinking != null,
-                          onTap: widget.onToggleThinking,
-                          tooltip: widget.thinkingEnabled
-                              ? tr(context, '深度思考：已开启（点击关闭）')
-                              : tr(context, '深度思考：已关闭（点击开启）'),
+                          enabled: widget.onOpenThinking != null,
+                          onTap: widget.onOpenThinking,
+                          tooltip: tr(
+                            context,
+                            '思考强度：{level}（点击调整）',
+                            <String, Object>{
+                              'level': widget.thinkingEnabled
+                                  ? widget.thinkingEffort
+                                  : 'No',
+                            },
+                          ),
                         ),
                         const SizedBox(width: 6),
                       ],

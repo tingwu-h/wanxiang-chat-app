@@ -947,8 +947,8 @@ class _SettingsPageState extends State<SettingsPage> {
               _group(
                 'search',
                 Icons.travel_explore,
-                tr(context, '联网搜索'),
-                tr(context, '联网检索、思考模式与图片档位'),
+                tr(context, '联网与模型行为'),
+                tr(context, '联网检索、模型行为与图片档位'),
                 [
                   ListTile(
                     contentPadding: EdgeInsets.zero,
@@ -965,7 +965,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.tune),
-                    title: Text(tr(context, '联网搜索与模型行为')),
+                    title: Text(tr(context, '联网搜索设置')),
                     subtitle: Text(
                       settings.settings.searchEnabled
                           ? tr(context, '联网搜索：已开启（点击关闭）')
