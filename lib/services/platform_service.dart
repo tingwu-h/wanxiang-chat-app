@@ -8,6 +8,7 @@ abstract interface class PlatformBackend {
   Future<void> writeKey(String value);
   Future<bool> exportHistory(String json);
   Future<bool> exportChatText(String text);
+  Future<bool> saveFile(String name, String mime, Uint8List bytes);
   Future<void> goToDesktop();
 }
 
@@ -24,6 +25,16 @@ class AndroidPlatformBackend implements PlatformBackend {
   @override
   Future<bool> exportChatText(String text) async =>
       await channel.invokeMethod<bool>('exportChatText', text) ?? false;
+
+  @override
+  Future<bool> saveFile(String name, String mime, Uint8List bytes) async =>
+      await channel.invokeMethod<bool>('saveFile', <String, dynamic>{
+        'name': name,
+        'mime': mime,
+        'bytes': bytes,
+      }) ??
+      false;
+
   @override
   Future<void> goToDesktop() => channel.invokeMethod<void>('goToDesktop');
 }
@@ -45,6 +56,9 @@ class SessionPlatformBackend implements PlatformBackend {
   Future<bool> exportChatText(String text) async =>
       throw UnsupportedError('当前平台尚未实现导出');
   @override
+  Future<bool> saveFile(String name, String mime, Uint8List bytes) async =>
+      throw UnsupportedError('当前平台尚未实现文件保存');
+  @override
   Future<void> goToDesktop() async => SystemNavigator.pop();
 }
 
@@ -57,5 +71,7 @@ class PlatformService {
   static Future<void> writeKey(String value) => backend.writeKey(value);
   static Future<bool> exportHistory(String json) => backend.exportHistory(json);
   static Future<bool> exportChatText(String text) => backend.exportChatText(text);
+  static Future<bool> saveFile(String name, String mime, Uint8List bytes) =>
+      backend.saveFile(name, mime, bytes);
   static Future<void> goToDesktop() => backend.goToDesktop();
 }

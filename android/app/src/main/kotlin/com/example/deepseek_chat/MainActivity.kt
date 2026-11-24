@@ -18,6 +18,7 @@ class MainActivity : FlutterActivity() {
     private val keyAlias = "deepseek_api_key_v1"
     private var exportResult: MethodChannel.Result? = null
     private var exportText: String? = null
+    private var exportBytes: ByteArray? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -69,10 +70,33 @@ class MainActivity : FlutterActivity() {
                                 startActivityForResult(intent, 117)
                             }
                         }
+                        "saveFile" -> {
+                            if (exportResult != null) {
+                                result.error("BUSY", "请先完成当前导出", null)
+                            } else {
+                                val args = call.arguments as Map<*, *>
+                                val name = args["name"] as? String ?: "wanxiang-file"
+                                val mime = args["mime"] as? String ?: "application/octet-stream"
+                                val bytes = args["bytes"] as? ByteArray
+                                    ?: throw IllegalArgumentException("Missing bytes")
+                                exportBytes = bytes
+                                exportResult = result
+                                val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                                    addCategory(Intent.CATEGORY_OPENABLE)
+                                    type = mime
+                                    putExtra(Intent.EXTRA_TITLE, name)
+                                }
+                                startActivityForResult(intent, 118)
+                            }
+                        }
                         else -> result.notImplemented()
                     }
                 } catch (e: Exception) {
-                    if (call.method == "exportHistory" || call.method == "exportChatText") { exportResult = null; exportText = null }
+                    if (call.method == "exportHistory" || call.method == "exportChatText" || call.method == "saveFile") {
+                        exportResult = null
+                        exportText = null
+                        exportBytes = null
+                    }
                     result.error("LOCAL_STORAGE", "本机安全存储或文件操作失败，请重试", null)
                 }
             }
@@ -114,12 +138,14 @@ class MainActivity : FlutterActivity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode != 117) return
+        if (requestCode != 117 && requestCode != 118) return
         val result = exportResult ?: return
         val text = exportText
+        val bytes = exportBytes
         exportResult = null
         exportText = null
-        if (resultCode != Activity.RESULT_OK || data?.data == null || text == null) {
+        exportBytes = null
+        if (resultCode != Activity.RESULT_OK || data?.data == null) {
             result.success(false)
             return
         }
@@ -127,7 +153,13 @@ class MainActivity : FlutterActivity() {
         Thread {
             try {
                 val output = contentResolver.openOutputStream(uri) ?: error("Cannot open destination")
-                output.use { it.write(text.toByteArray(Charsets.UTF_8)) }
+                output.use {
+                    if (requestCode == 118) {
+                        it.write(bytes ?: error("Missing bytes"))
+                    } else {
+                        it.write((text ?: error("Missing text")).toByteArray(Charsets.UTF_8))
+                    }
+                }
                 runOnUiThread { result.success(true) }
             } catch (e: Exception) {
                 runOnUiThread { result.error("EXPORT_FAILED", "未能保存文件，请重新选择位置", null) }

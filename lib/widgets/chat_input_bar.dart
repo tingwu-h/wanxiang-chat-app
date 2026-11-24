@@ -34,6 +34,8 @@ class ChatInputBar extends StatefulWidget {
     this.thinkingLevel = 2,
     this.thinkingEffort = '',
     this.onPickThinkingLevel,
+    this.canCreateDocument = false,
+    this.onCreateDocument,
   });
 
   /// 点击发送（文字已 trim，可能为空串——表示只发附件）
@@ -93,6 +95,12 @@ class ChatInputBar extends StatefulWidget {
 
   /// 选择档位：点胶囊弹出悬浮框，选中后回调
   final ValueChanged<int>? onPickThinkingLevel;
+
+  /// 当前服务商是否支持生成 Word / Excel / PPT
+  final bool canCreateDocument;
+
+  /// 打开「创建文档」页
+  final VoidCallback? onCreateDocument;
 
   @override
   State<ChatInputBar> createState() => _ChatInputBarState();
@@ -552,6 +560,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
         if (v == 'camera') widget.onTakePhoto();
         if (v == 'image') widget.onPickImages();
         if (v == 'file') widget.onPickFiles();
+        if (v == 'document') widget.onCreateDocument?.call();
       },
       itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
         PopupMenuItem<String>(
@@ -582,6 +591,21 @@ class _ChatInputBarState extends State<ChatInputBar> {
             leading: const Icon(Icons.attach_file),
             title: Text(tr(context, '文件')),
             subtitle: Text(tr(context, 'txt / md / json / csv / 代码')),
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'document',
+          enabled: widget.canCreateDocument && widget.onCreateDocument != null,
+          child: ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.description_outlined),
+            title: Text(tr(context, '创建文档')),
+            subtitle: Text(
+              widget.canCreateDocument
+                  ? tr(context, 'Word / Excel / PPT')
+                  : tr(context, '当前服务商暂未适配'),
+            ),
           ),
         ),
       ],

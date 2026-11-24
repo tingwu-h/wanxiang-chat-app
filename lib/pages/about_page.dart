@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'package:deepseek_chat/utils/app_info.dart';
 import 'package:deepseek_chat/utils/link_actions.dart';
+import 'package:deepseek_chat/services/update_service.dart';
 
 /// 关于页：版本号、创作者、相关链接。
 ///
@@ -73,6 +74,10 @@ class AboutPage extends StatelessWidget {
 
           const SizedBox(height: 12),
 
+          const Card(child: _UpdateTile()),
+
+          const SizedBox(height: 12),
+
           // 链接
           Card(
             child: Column(
@@ -114,6 +119,105 @@ class AboutPage extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// 一行可点击的链接：点了用系统浏览器打开
+class _UpdateTile extends StatefulWidget {
+  const _UpdateTile();
+
+  @override
+  State<_UpdateTile> createState() => _UpdateTileState();
+}
+
+class _UpdateTileState extends State<_UpdateTile> {
+  final UpdateService _service = UpdateService();
+  bool _checking = false;
+  String? _result;
+
+  @override
+  void dispose() {
+    _service.dispose();
+    super.dispose();
+  }
+
+  Future<void> _check() async {
+    if (_checking) return;
+    setState(() {
+      _checking = true;
+      _result = null;
+    });
+    try {
+      final UpdateInfo info = await _service.latest();
+      if (!mounted) return;
+      if (UpdateService.compareVersions(info.version, kAppVersion) > 0) {
+        setState(() => _result = tr(context, '发现新版本 v{version}', {
+          'version': info.version,
+        }));
+        await _showUpdate(info);
+      } else {
+        setState(() => _result = tr(context, '已是最新版本'));
+      }
+    } on UpdateException catch (e) {
+      if (!mounted) return;
+      setState(() => _result = e.message);
+    } finally {
+      if (mounted) setState(() => _checking = false);
+    }
+  }
+
+  Future<void> _showUpdate(UpdateInfo info) async {
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext ctx) => AlertDialog(
+        title: Text(tr(ctx, '发现新版本 v{version}', {'version': info.version})),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: SelectableText(
+              info.body.isEmpty ? tr(ctx, '暂无更新说明') : info.body,
+            ),
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(tr(ctx, '稍后')),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(0, 44),
+            ),
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              openExternalUrl(ctx, info.url);
+            },
+            child: Text(tr(ctx, '打开下载页')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    return ListTile(
+      leading: _checking
+          ? const SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.system_update_alt),
+      title: Text(tr(context, '检测更新')),
+      subtitle: Text(
+        _result ?? tr(context, '当前 v{version}', {'version': kAppVersion}),
+        style: TextStyle(color: scheme.onSurfaceVariant),
+      ),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: _checking ? null : _check,
     );
   }
 }

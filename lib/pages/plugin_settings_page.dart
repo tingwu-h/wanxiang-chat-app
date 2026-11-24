@@ -197,9 +197,18 @@ class PluginSettingsPage extends StatelessWidget {
             onChanged: (bool v) => provider.updatePlugins(overrideAppLines: v),
           ),
           const Divider(),
-          Row(
+          // 注意：全局 filledButtonTheme 的 minimumSize 是 Size.fromHeight(48)
+          // （宽度 infinity），放进 Row 会拿到无界宽度把第二个按钮挤出去。
+          // 这里显式把最小宽度收回来，并用 Wrap 防窄屏溢出。
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: <Widget>[
               FilledButton.tonalIcon(
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(0, 44),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                ),
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => _PluginEditorPage(
@@ -211,7 +220,6 @@ class PluginSettingsPage extends StatelessWidget {
                 icon: const Icon(Icons.add),
                 label: Text(tr(context, '新建插件')),
               ),
-              const SizedBox(width: 8),
               OutlinedButton.icon(
                 onPressed: () => _import(context, provider),
                 icon: const Icon(Icons.file_open_outlined),

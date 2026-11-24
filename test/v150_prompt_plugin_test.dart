@@ -337,5 +337,38 @@ void main() {
       );
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets('窄屏下新建按钮不会被撑成空白胶囊', (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      final StorageService storage = StorageService(
+        readKey: () async => null,
+        writeKey: (String _) async {},
+      );
+      final AppSettingsProvider provider = AppSettingsProvider(
+        storage: storage,
+      );
+      await provider.init();
+
+      await tester.pumpWidget(
+        ChangeNotifierProvider<AppSettingsProvider>.value(
+          value: provider,
+          child: const MaterialApp(home: PluginSettingsPage()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final Finder button = find.byType(FilledButton).first;
+      expect(tester.getSize(button).width, lessThan(280));
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(button);
+      await tester.pumpAndSettle();
+      expect(find.byType(TextField), findsWidgets);
+    });
   });
 }

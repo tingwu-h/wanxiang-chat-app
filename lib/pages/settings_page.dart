@@ -20,6 +20,7 @@ import 'package:deepseek_chat/providers/chat_provider.dart';
 import 'package:deepseek_chat/services/deepseek_service.dart';
 import 'package:deepseek_chat/services/platform_service.dart';
 import 'package:deepseek_chat/utils/link_actions.dart';
+import 'package:deepseek_chat/utils/file_capability.dart';
 import 'package:deepseek_chat/utils/app_localizations.dart';
 
 /// 分组设置；编辑草稿在折叠和切换分类时保留，保存后才落盘。
@@ -740,6 +741,17 @@ class _SettingsPageState extends State<SettingsPage> {
                         label: Text(tr(context, '查看免费额度说明')),
                       ),
                     ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      supportsFileGeneration(_draft.providerId)
+                          ? tr(context, '此服务商支持生成 Word / Excel / PPT')
+                          : tr(context, '此服务商暂不支持生成文件'),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 12),
                   _group(
                     'advanced',

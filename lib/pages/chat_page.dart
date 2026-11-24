@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:deepseek_chat/pages/image_editor_page.dart';
+import 'package:deepseek_chat/pages/document_page.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -22,6 +23,7 @@ import 'package:deepseek_chat/widgets/chat_input_bar.dart';
 import 'package:deepseek_chat/widgets/conversation_drawer.dart';
 import 'package:deepseek_chat/widgets/message_list_view.dart';
 import 'package:deepseek_chat/utils/prompt_assembler.dart';
+import 'package:deepseek_chat/utils/file_capability.dart';
 import 'package:deepseek_chat/utils/app_localizations.dart';
 
 /// 主页面：悬浮操作栏、消息列表、悬浮输入框及当前服务商模型选择。
@@ -669,6 +671,12 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                                       reasoningEffort:
                                           AppSettings.effortForLevel(level),
                                     ),
+                                canCreateDocument: supportsFileGeneration(
+                                  appearance.providerId,
+                                ),
+                                onCreateDocument: () => Navigator.of(
+                                  context,
+                                ).pushNamed(DocumentPage.routeName),
                               ),
                             ),
                           ),
@@ -885,6 +893,23 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                               ).tags.map((tag) => tr(context, tag)).join(' · '),
                               style: theme.textTheme.labelSmall?.copyWith(
                                 color: scheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              supportsFileGeneration(
+                                    provider.settings.providerId,
+                                  )
+                                  ? tr(context, '支持生成文件')
+                                  : tr(context, '暂不支持生成文件'),
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: supportsFileGeneration(
+                                      provider.settings.providerId,
+                                    )
+                                    ? scheme.primary
+                                    : scheme.onSurfaceVariant.withValues(
+                                        alpha: .7,
+                                      ),
                               ),
                             ),
                           ],
