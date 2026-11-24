@@ -80,6 +80,7 @@ class SearchService {
     String? oriQuestion,
     int count = AppSettings.defaultSearchCount,
     bool fetchContent = false,
+    bool includeGuidance = true,
   }) async {
     final String key = apiKey.trim();
     if (key.isEmpty) {
@@ -194,11 +195,14 @@ class SearchService {
     }
 
     final StringBuffer sb = StringBuffer();
-    sb.writeln('以下是我刚检索到的网页资料，请优先依据它们回答。');
-    sb.writeln('要求：');
-    sb.writeln('1. 用 [编号] 标注引用来源，例如「据 [1] 报道…」。');
-    sb.writeln('2. 资料不足时明确说明不知道，不要编造。');
-    sb.writeln();
+    // 覆盖模式下连“请优先依据资料回答”这类引导也不写，只留资料本体。
+    if (includeGuidance) {
+      sb.writeln('以下是我刚检索到的网页资料，请优先依据它们回答。');
+      sb.writeln('要求：');
+      sb.writeln('1. 用 [编号] 标注引用来源，例如「据 [1] 报道…」。');
+      sb.writeln('2. 资料不足时明确说明不知道，不要编造。');
+      sb.writeln();
+    }
     for (int i = 0; i < injectCount; i++) {
       final int index = indexes[i];
       sb.writeln('[${i + 1}] ${sources[i].displayTitle}');

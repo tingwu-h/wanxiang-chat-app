@@ -42,6 +42,7 @@ class FakeSearch extends SearchService {
     String? oriQuestion,
     int count = AppSettings.defaultSearchCount,
     bool fetchContent = false,
+    bool includeGuidance = true,
   }) async {
     calls++;
     lastQuery = query;

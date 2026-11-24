@@ -6,9 +6,11 @@ import 'package:deepseek_chat/models/app_settings.dart';
 import 'package:deepseek_chat/models/chat_attachment.dart';
 import 'package:deepseek_chat/models/chat_message.dart';
 import 'package:deepseek_chat/models/conversation.dart';
+import 'package:deepseek_chat/models/prompt_plugin.dart';
 import 'package:deepseek_chat/services/deepseek_service.dart';
 import 'package:deepseek_chat/services/search_service.dart';
 import 'package:deepseek_chat/services/storage_service.dart';
+import 'package:deepseek_chat/utils/prompt_assembler.dart';
 import 'package:deepseek_chat/utils/search_query.dart';
 
 /// 对话状态：多会话管理 + 流式接收 + 中断控制 + 本地持久化。
@@ -119,6 +121,18 @@ class ChatProvider extends ChangeNotifier {
     if (conv == null) return;
     final String trimmed = prompt.trim();
     conv.systemPrompt = trimmed.isEmpty ? null : trimmed;
+    notifyListeners();
+    await _persist(conv);
+  }
+
+  /// 当前会话单独指定的插件 id；null 表示跟随全局。
+  List<String>? get activePluginIds => _active?.pluginIds;
+
+  /// 设置当前会话启用哪些插件。传 null 表示恢复跟随全局。
+  Future<void> setActivePluginIds(List<String>? ids) async {
+    final Conversation? conv = _active;
+    if (conv == null) return;
+    conv.pluginIds = ids;
     notifyListeners();
     await _persist(conv);
   }
@@ -320,6 +334,8 @@ class ChatProvider extends ChangeNotifier {
             oriQuestion: oriQuestion,
             count: settings.searchCount,
             fetchContent: settings.searchFetch,
+            // 覆盖模式下不写“请优先依据资料回答”这类应用引导
+            includeGuidance: !settings.pluginOverrideAppLines,
           );
           if (token != _activeToken) return; // 期间被停止/切换
           searchContext = outcome.contextText;
@@ -339,19 +355,25 @@ class ChatProvider extends ChangeNotifier {
       }
     }
 
-    // 生效提示词：会话专属 > 全局默认；再把检索资料附在后面
+    // 生效提示词：会话专属 > 全局默认；插件与检索资料统一交给拼装器。
     final String basePrompt = effectiveSystemPrompt(settings);
     // 模型不知道「今天」是哪天。不注入的话，问日期只能回答「无法确定」。
     final String dateLine = settings.injectCurrentTime
         ? _currentTimeLine(searchEnabled: settings.searchEnabled)
         : '';
-    final List<String> parts = <String>[
-      if (dateLine.isNotEmpty) dateLine,
-      if (basePrompt.trim().isNotEmpty) basePrompt.trim(),
-      if (searchContext.isNotEmpty) searchContext,
-    ];
+    final List<PromptPlugin> activePlugins = PromptAssembler.resolve(
+      settings,
+      conv.pluginIds,
+    );
     final AppSettings effectiveSettings = settings.copyWith(
-      systemPrompt: parts.join('\n\n'),
+      systemPrompt: PromptAssembler.build(
+        plugins: activePlugins,
+        dateLine: dateLine,
+        basePrompt: basePrompt,
+        searchContext: searchContext,
+        overrideAppLines: settings.pluginOverrideAppLines,
+        model: settings.model,
+      ),
     );
 
     bool receivedAny = false;

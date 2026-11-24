@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 
 import 'package:deepseek_chat/models/app_settings.dart';
 import 'package:deepseek_chat/models/chat_attachment.dart';
+import 'package:deepseek_chat/models/prompt_plugin.dart';
 import 'package:deepseek_chat/pages/settings_page.dart';
 import 'package:deepseek_chat/providers/app_settings_provider.dart';
 import 'package:deepseek_chat/providers/chat_provider.dart';
@@ -363,8 +364,80 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _confirmClearCurrent() async {
-    final bool? ok = await showDialog<bool>(
+  /// 本会话启用哪些指令插件。
+  Future<void> _editConversationPlugins(ChatProvider chat) async {
+    final AppSettingsProvider settings = context.read<AppSettingsProvider>();
+    final List<PromptPlugin> plugins = settings.settings.plugins;
+    final List<String>? current = chat.activePluginIds;
+    bool follow = current == null;
+    final Set<String> selected = <String>{...?current};
+
+    final (bool, List<String>)? result = await showDialog<(bool, List<String>)>(
+      context: context,
+      builder: (BuildContext ctx) => StatefulBuilder(
+        builder: (BuildContext ctx, StateSetter setModalState) => AlertDialog(
+          title: Text(tr(ctx, '本会话指令插件')),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: follow,
+                    onChanged: (bool? v) =>
+                        setModalState(() => follow = v ?? false),
+                    title: Text(tr(ctx, '跟随全局设置')),
+                  ),
+                  if (!follow) ...<Widget>[
+                    const Divider(),
+                    if (plugins.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Text(tr(ctx, '还没有插件，请先到设置里新建')),
+                      )
+                    else
+                      for (final PromptPlugin plugin in plugins)
+                        CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          value: selected.contains(plugin.id),
+                          onChanged: (bool? v) => setModalState(() {
+                            if (v ?? false) {
+                              selected.add(plugin.id);
+                            } else {
+                              selected.remove(plugin.id);
+                            }
+                          }),
+                          title: Text(
+                            plugin.name.trim().isEmpty
+                                ? tr(ctx, '未命名插件')
+                                : plugin.name,
+                          ),
+                        ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(tr(ctx, '取消')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, (follow, selected.toList())),
+              child: Text(tr(ctx, '保存')),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (result == null || !mounted) return;
+    await chat.setActivePluginIds(result.$1 ? null : result.$2);
+  }
+
+  Future<void> _confirmClearCurrent() async {    final bool? ok = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) => AlertDialog(
         title: Text(tr(context, '清空当前对话？')),
@@ -638,6 +711,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                   tooltip: tr(context, '对话操作'),
                   onSelected: (String value) {
                     if (value == 'prompt') _editConversationPrompt(chat);
+                    if (value == 'plugins') _editConversationPlugins(chat);
                     if (value == 'export') _exportCurrentConversation();
                     if (value == 'clear') _confirmClearCurrent();
                   },
@@ -654,6 +728,22 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                               chat.activeSystemPrompt.trim().isEmpty
                                   ? tr(context, '未单独设置（沿用默认）')
                                   : tr(context, '已单独设置'),
+                            ),
+                          ),
+                        ),
+                        PopupMenuItem<String>(
+                          value: 'plugins',
+                          child: ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(Icons.psychology_alt_outlined),
+                            title: Text(tr(context, '本会话指令插件')),
+                            subtitle: Text(
+                              chat.activePluginIds == null
+                                  ? tr(context, '跟随全局')
+                                  : tr(context, '已指定 {count} 个', {
+                                      'count': chat.activePluginIds!.length,
+                                    }),
                             ),
                           ),
                         ),

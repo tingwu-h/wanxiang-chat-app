@@ -14,6 +14,7 @@ class Conversation {
     this.providerId,
     this.model,
     this.systemPrompt,
+    this.pluginIds,
   }) : messages = messages ?? <ChatMessage>[],
        createdAt = createdAt ?? DateTime.now(),
        updatedAt = updatedAt ?? DateTime.now();
@@ -39,6 +40,11 @@ class Conversation {
   /// null / 空串表示「本会话没有单独设置」，发送时回落到设置页的
   /// 默认提示词——这样老用户升级后行为不变，不会突然丢提示词。
   String? systemPrompt;
+
+  /// 本会话启用的指令插件 id。
+  ///
+  /// null 表示跟随全局；空列表表示本会话明确不用任何插件。
+  List<String>? pluginIds;
 
   /// 是否单独设置过提示词
   bool get hasOwnSystemPrompt => (systemPrompt ?? '').trim().isNotEmpty;
@@ -85,6 +91,7 @@ class Conversation {
     'updatedAt': updatedAt.millisecondsSinceEpoch,
     if (hasCustomTitle) 'customTitle': customTitle,
     if (hasOwnSystemPrompt) 'systemPrompt': systemPrompt,
+    if (pluginIds != null) 'pluginIds': pluginIds,
     'messages': messages.map((ChatMessage m) => m.toJson()).toList(),
   };
 
@@ -110,6 +117,9 @@ class Conversation {
       model: json['model'] as String?,
       // 旧数据没有这个字段，读成 null 即「沿用默认提示词」
       systemPrompt: json['systemPrompt'] as String?,
+      pluginIds: json['pluginIds'] is List
+          ? (json['pluginIds'] as List<dynamic>).whereType<String>().toList()
+          : null,
     );
   }
 

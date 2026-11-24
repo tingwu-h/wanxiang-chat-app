@@ -1,4 +1,5 @@
 import 'package:deepseek_chat/models/provider_catalog.dart';
+import 'package:deepseek_chat/models/prompt_plugin.dart';
 
 /// 内存设置模型；落盘时密钥与普通设置分开保存。
 class AppSettings {
@@ -27,6 +28,8 @@ class AppSettings {
     this.reasoningEffort = defaultReasoningEffort,
     this.imageDetail = '',
     this.injectCurrentTime = true,
+    this.plugins = const <PromptPlugin>[],
+    this.pluginOverrideAppLines = false,
   });
 
   /// DeepSeek 官方 API 基地址
@@ -173,6 +176,8 @@ class AppSettings {
       'reasoningEffort': reasoningEffort,
       'imageDetail': imageDetail,
       'injectCurrentTime': injectCurrentTime,
+      'plugins': plugins,
+      'pluginOverrideAppLines': pluginOverrideAppLines,
     });
   }
 
@@ -230,6 +235,12 @@ class AppSettings {
   /// 默认开启；用户可以关掉，但关掉后日期类问题会退回到猜测。
   final bool injectCurrentTime;
 
+  /// 用户自定义的指令插件（插件只在请求组装时拼接，不进会话历史）。
+  final List<PromptPlugin> plugins;
+
+  /// 覆盖模式：清掉应用自动注入的时间行与检索引导语。
+  final bool pluginOverrideAppLines;
+
   /// 实际用于搜索的 Key：优先专用 Key，否则复用 DeepSeek 那家的
   String get effectiveSearchApiKey {
     final String own = searchApiKey.trim();
@@ -286,6 +297,8 @@ class AppSettings {
     String? reasoningEffort,
     String? imageDetail,
     bool? injectCurrentTime,
+    List<PromptPlugin>? plugins,
+    bool? pluginOverrideAppLines,
   }) {
     return AppSettings(
       savedModels: {
@@ -318,6 +331,9 @@ class AppSettings {
       reasoningEffort: reasoningEffort ?? this.reasoningEffort,
       imageDetail: imageDetail ?? this.imageDetail,
       injectCurrentTime: injectCurrentTime ?? this.injectCurrentTime,
+      plugins: plugins ?? this.plugins,
+      pluginOverrideAppLines:
+          pluginOverrideAppLines ?? this.pluginOverrideAppLines,
     );
   }
 
@@ -346,6 +362,8 @@ class AppSettings {
     'reasoningEffort': reasoningEffort,
     'imageDetail': imageDetail,
     'injectCurrentTime': injectCurrentTime,
+    'plugins': PromptPlugin.listToJson(plugins),
+    'pluginOverrideAppLines': pluginOverrideAppLines,
   };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
@@ -392,6 +410,8 @@ class AppSettings {
       injectCurrentTime: json['injectCurrentTime'] is bool
           ? json['injectCurrentTime'] as bool
           : true,
+      plugins: PromptPlugin.listFromJson(json['plugins']),
+      pluginOverrideAppLines: json['pluginOverrideAppLines'] == true,
     );
   }
 

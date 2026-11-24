@@ -457,4 +457,71 @@ const _labels = <String, (String, String)>{
   ),
   '联网搜索设置': ('聯網搜尋設定', 'Web search settings'),
   '正在联网搜索': ('正在聯網搜尋', 'Searching the web'),
+
+  // ---------- v1.5.0：指令插件（提示词层） ----------
+  '指令插件': ('指令插件', 'Instruction plugins'),
+  '提示词层插件，可按会话启用': (
+    '提示詞層外掛，可按工作階段啟用',
+    'Prompt-layer plugins, per conversation',
+  ),
+  '提示词层，只影响发送给模型的 system prompt；不保证模型一定遵从。': (
+    '提示詞層，只影響送給模型的 system prompt；不保證模型一定遵從。',
+    'Prompt layer only: it changes the system prompt and may not be obeyed.',
+  ),
+  '覆盖应用注入的说明': (
+    '覆寫應用程式注入的說明',
+    'Override app-injected notes',
+  ),
+  '去掉时间行与检索引导语；问日期可能不准确': (
+    '去掉時間列與檢索引導語；問日期可能不準確',
+    'Removes the date line and search guidance; date answers may be wrong',
+  ),
+  '新建插件': ('新增外掛', 'New plugin'),
+  '导入插件': ('匯入外掛', 'Import plugin'),
+  '已导入插件': ('已匯入外掛', 'Plugin imported'),
+  '没有可导入的文本': ('沒有可匯入的文字', 'No text to import'),
+  '还没有插件。新建或导入一个文本文件即可。': (
+    '還沒有外掛。新增或匯入一個文字檔即可。',
+    'No plugins yet. Create one or import a text file.',
+  ),
+  '未命名插件': ('未命名外掛', 'Untitled plugin'),
+  '已启用': ('已啟用', 'Enabled'),
+  '已停用': ('已停用', 'Disabled'),
+  '插件操作': ('外掛操作', 'Plugin actions'),
+  '启用': ('啟用', 'Enable'),
+  '停用': ('停用', 'Disable'),
+  '上移': ('上移', 'Move up'),
+  '下移': ('下移', 'Move down'),
+  '预览最终提示词': ('預覽最終提示詞', 'Preview final prompt'),
+  '（当前没有可发送的提示词）': (
+    '（目前沒有可送出的提示詞）',
+    '(No prompt to send)',
+  ),
+  '关闭': ('關閉', 'Close'),
+  '编辑插件': ('編輯外掛', 'Edit plugin'),
+  '导出插件': ('匯出外掛', 'Export plugin'),
+  '插件名称': ('外掛名稱', 'Plugin name'),
+  '插件正文': ('外掛正文', 'Plugin body'),
+  '支持 {{date}}、{{time}}、{{model}}': (
+    '支援 {{date}}、{{time}}、{{model}}',
+    'Supports {{date}}, {{time}}, {{model}}',
+  ),
+  '插件只在请求时拼接，不会写入聊天记录，也不会出现在导出文件里。': (
+    '外掛只在請求時拼接，不會寫入聊天記錄，也不會出現在匯出檔案裡。',
+    'Plugins are applied per request only; they are never stored or exported.',
+  ),
+  '插件正文不能为空': ('外掛正文不能為空', 'Plugin body cannot be empty'),
+  '单条插件不能超过 4000 字': (
+    '單一外掛不能超過 4000 字',
+    'A plugin cannot exceed 4000 characters',
+  ),
+  '插件已导出': ('外掛已匯出', 'Plugin exported'),
+  '本会话指令插件': ('本工作階段指令外掛', 'Plugins for this conversation'),
+  '跟随全局设置': ('跟隨全域設定', 'Follow global settings'),
+  '跟随全局': ('跟隨全域', 'Follow global'),
+  '已指定 {count} 个': ('已指定 {count} 個', '{count} selected'),
+  '还没有插件，请先到设置里新建': (
+    '還沒有外掛，請先到設定裡新增',
+    'No plugins yet. Create one in Settings first.',
+  ),
 };

@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import 'package:deepseek_chat/models/app_settings.dart';
 import 'package:deepseek_chat/pages/about_page.dart';
 import 'package:deepseek_chat/pages/model_behaviour_page.dart';
+import 'package:deepseek_chat/pages/plugin_settings_page.dart';
 import 'package:deepseek_chat/pages/search_settings_page.dart';
 import 'package:deepseek_chat/utils/app_info.dart';
 import 'package:deepseek_chat/widgets/model_tags.dart';
@@ -904,6 +905,17 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                       child: Text(tr(context, '如何选择？')),
                     ),
+                  ),
+                  const Divider(),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.psychology_alt_outlined),
+                    title: Text(tr(context, '指令插件')),
+                    subtitle: Text(tr(context, '提示词层插件，可按会话启用')),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(
+                      context,
+                    ).pushNamed(PluginSettingsPage.routeName),
                   ),
                 ],
               ),

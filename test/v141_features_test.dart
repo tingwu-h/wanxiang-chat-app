@@ -35,6 +35,7 @@ class NoopSearch extends SearchService {
     String? oriQuestion,
     int count = AppSettings.defaultSearchCount,
     bool fetchContent = false,
+    bool includeGuidance = true,
   }) async => const SearchOutcome(sources: <ChatSource>[], contextText: '');
 
   @override

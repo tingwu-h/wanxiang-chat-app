@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import 'package:deepseek_chat/models/app_settings.dart';
+import 'package:deepseek_chat/models/prompt_plugin.dart';
 import 'package:deepseek_chat/services/storage_service.dart';
 
 /// 应用根状态：设置 + 主题模式 + 初始化状态。
@@ -122,6 +123,17 @@ class AppSettingsProvider extends ChangeNotifier {
       reasoningEffort: reasoningEffort,
       imageDetail: imageDetail,
       injectCurrentTime: injectCurrentTime,
+    ),
+  );
+
+  /// 更新指令插件与覆盖模式。
+  Future<void> updatePlugins({
+    List<PromptPlugin>? plugins,
+    bool? overrideAppLines,
+  }) => replace(
+    _settings.copyWith(
+      plugins: plugins,
+      pluginOverrideAppLines: overrideAppLines,
     ),
   );
 

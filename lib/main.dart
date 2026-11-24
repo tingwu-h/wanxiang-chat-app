@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'package:deepseek_chat/pages/about_page.dart';
 import 'package:deepseek_chat/pages/model_behaviour_page.dart';
+import 'package:deepseek_chat/pages/plugin_settings_page.dart';
 import 'package:deepseek_chat/pages/search_settings_page.dart';
 import 'package:deepseek_chat/pages/chat_page.dart';
 import 'package:deepseek_chat/pages/settings_page.dart';
@@ -95,6 +96,7 @@ class DeepSeekChatApp extends StatelessWidget {
               SettingsPage.routeName: (_) => const SettingsPage(),
               SearchSettingsPage.routeName: (_) => const SearchSettingsPage(),
               ModelBehaviourPage.routeName: (_) => const ModelBehaviourPage(),
+              PluginSettingsPage.routeName: (_) => const PluginSettingsPage(),
               AboutPage.routeName: (_) => const AboutPage(),
             },
           );
