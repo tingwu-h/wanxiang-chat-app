@@ -376,7 +376,6 @@ class ChatProvider extends ChangeNotifier {
       ),
     );
 
-    bool receivedAny = false;
     String? finishReason;
     // 流式输出时不要每收到一个 chunk 就重建界面：
     // 服务端可能每秒推几十次，每次都重建整棵组件树 + 重解析 Markdown 会明显卡顿。
@@ -392,14 +391,152 @@ class ChatProvider extends ChangeNotifier {
       });
     }
 
-    final done = Completer<void>();
-    _requestDone = done;
     _checkpoint = Timer.periodic(const Duration(seconds: 2), (_) {
       if (token == _activeToken) unawaited(_persist(conv));
     });
+
+    final List<AppSettings> attempts = _buildAttempts(effectiveSettings);
+    try {
+      for (int attempt = 0; attempt < attempts.length; attempt++) {
+        final bool last = attempt == attempts.length - 1;
+        // 每次重试都从空白气泡开始，避免两次回答叠在一起。
+        assistant.content = '';
+        assistant.thinking = '';
+        finishReason = null;
+
+        final _StreamAttempt result = await _streamOnce(
+          settings: attempts[attempt],
+          history: context,
+          assistant: assistant,
+          token: token,
+          scheduleNotify: scheduleNotify,
+        );
+        finishReason = result.finishReason;
+
+        if (result.refused) {
+          if (!last) continue;
+          final String refusal = assistant.content.trim();
+          assistant.content = refusal.isEmpty
+              ? '模型拒绝回答，已自动重试。'
+              : '$refusal\n\n> ⚠️ 已自动重试，仍被拒绝。';
+          assistant.error = true;
+          assistant.failureKind = MessageFailure.provider;
+          _error = '模型拒绝回答，已自动重试。可换模型或关闭联网再试。';
+          break;
+        }
+
+        if (result.error != null) {
+          final Object e = result.error!;
+          // 三类失败要分开：超时是「等太久了」，服务商错误是「对方挂了」，
+          // 网络错误是「你自己的网断了」——用户下一步动作完全不同。
+          final String kind = classifyFailure(e);
+          final String msg = e is DeepSeekException
+              ? e.message
+              : _friendlyFailureMessage(kind);
+          if (token == _activeToken) {
+            if (assistant.content.trim().isEmpty && !assistant.hasThinking) {
+              assistant.content = msg;
+              assistant.error = true;
+              assistant.failureKind = kind;
+            } else {
+              assistant.content += '\n\n> ⚠️ 连接中断：$msg';
+              assistant.failureKind = kind;
+            }
+            _error = msg;
+          }
+          break;
+        }
+
+        // 服务端可能把预填充回显在开头，去掉避免重复。
+        final String prefix = attempts[attempt].prefillText.trim();
+        if (attempts[attempt].prefillEnabled &&
+            prefix.isNotEmpty &&
+            assistant.content.startsWith(prefix)) {
+          assistant.content = assistant.content
+              .substring(prefix.length)
+              .trimLeft();
+        }
+
+        final bool finished = token == _activeToken;
+        if (finished) {
+          _applyFinishReason(assistant, finishReason);
+        }
+        if (finished &&
+            assistant.content.trim().isEmpty &&
+            assistant.hasThinking &&
+            !assistant.error) {
+          // 只有思考、没有正文：原来会静默留一个空白回答，用户完全不知道发生什么
+          assistant.content = '模型只输出了思考过程，没有给出回答。请重试。';
+          assistant.error = true;
+          assistant.failureKind = MessageFailure.provider;
+        }
+        if (finished &&
+            assistant.content.trim().isEmpty &&
+            !assistant.hasThinking) {
+          // 流正常结束但没有内容：算服务商没给出回答
+          assistant.content = '（模型没有返回内容，请重试或换一个模型）';
+          assistant.error = true;
+          assistant.failureKind = MessageFailure.provider;
+        }
+        break;
+      }
+      // 联网降级说明：只提示，不把回答标成失败
+      if (token == _activeToken && searchWarning != null) {
+        _error = searchWarning;
+      }
+    } finally {
+      // 收尾：先取消尚未触发的节流定时器，避免它在 _loading 变 false 后再通知一次
+      notifier?.cancel();
+      // 空内容气泡直接丢掉，避免历史里出现空白消息
+      if (assistant.isBlank) {
+        conv.messages.remove(assistant);
+      }
+      if (token == _activeToken) _loading = false;
+      _checkpoint?.cancel();
+      _api.cancel();
+      final subscription = _subscription;
+      if (subscription != null) unawaited(subscription.cancel());
+      _subscription = null;
+      _requestDone = null;
+      notifyListeners();
+      await _persist(conv);
+    }
+  }
+
+  /// 按「正常 → 预填充 → 备用服务商」生成重试序列。
+  List<AppSettings> _buildAttempts(AppSettings base) {
+    final List<AppSettings> attempts = <AppSettings>[
+      base.copyWith(prefillEnabled: base.alwaysPrefill),
+    ];
+    if (!base.refusalRetry) return attempts;
+    if (!base.alwaysPrefill) {
+      attempts.add(base.copyWith(prefillEnabled: true));
+    }
+    final String fallbackId = base.fallbackProviderId.trim();
+    if (fallbackId.isNotEmpty && fallbackId != base.providerId) {
+      final AppSettings fallback = base.forProvider(fallbackId);
+      if (fallback.hasApiKey) {
+        attempts.add(fallback.copyWith(prefillEnabled: true));
+      }
+    }
+    return attempts;
+  }
+
+  /// 单次流式尝试。拒答会被提前中止，交给上层决定是否重试。
+  Future<_StreamAttempt> _streamOnce({
+    required AppSettings settings,
+    required List<ChatMessage> history,
+    required ChatMessage assistant,
+    required int token,
+    required void Function() scheduleNotify,
+  }) async {
+    final Completer<void> done = Completer<void>();
+    _requestDone = done;
+    bool refused = false;
+    String? finishReason;
     try {
       _subscription = _api
-          .streamChat(settings: effectiveSettings, history: context)
+          .streamChat(settings: settings, history: history)
           .listen(
             (chunk) {
               if (chunk.done) {
@@ -411,14 +548,18 @@ class ChatProvider extends ChangeNotifier {
                 return;
               }
               if (token != _activeToken || chunk.isEmpty) return;
-              receivedAny = true;
-              // 思考过程和正文分开存：混在一起会让回答一团糟
+              if (refused) return;
               if (chunk.thinking) {
                 assistant.thinking += chunk.text;
               } else {
                 assistant.content += chunk.text;
               }
               scheduleNotify();
+              if (!chunk.thinking && _looksLikeRefusal(assistant.content)) {
+                refused = true;
+                _api.cancel();
+                if (!done.isCompleted) done.complete();
+              }
             },
             onError: (Object error, StackTrace stack) {
               if (!done.isCompleted) done.completeError(error, stack);
@@ -428,9 +569,7 @@ class ChatProvider extends ChangeNotifier {
             },
             cancelOnError: true,
           );
-      // 兜底：即使底层流以任何方式卡住不再结束，这里也必须收尾，
-      // 否则 _loading 永远为 true，界面会一直转圈停不下来。
-      // 取值比服务层的静默超时宽裕，避免抢在它前面误报。
+      // 兜底：即使底层流以任何方式卡住不再结束，这里也必须收尾。
       await done.future.timeout(
         const Duration(seconds: 300),
         onTimeout: () {
@@ -440,70 +579,46 @@ class ChatProvider extends ChangeNotifier {
           );
         },
       );
-
-      final bool finished = token == _activeToken;
-      if (finished) {
-        _applyFinishReason(assistant, finishReason);
-      }
-      if (finished &&
-          assistant.content.trim().isEmpty &&
-          assistant.hasThinking &&
-          !assistant.error) {
-        // 只有思考、没有正文：原来会静默留一个空白回答，用户完全不知道发生什么
-        assistant.content = '模型只输出了思考过程，没有给出回答。请重试。';
-        assistant.error = true;
-        assistant.failureKind = MessageFailure.provider;
-      }
-      if (finished &&
-          assistant.content.trim().isEmpty &&
-          !assistant.hasThinking) {
-        // 流正常结束但没有内容：算服务商没给出回答
-        assistant.content = '（模型没有返回内容，请重试或换一个模型）';
-        assistant.error = true;
-        assistant.failureKind = MessageFailure.provider;
-      }
-      // 联网降级说明：只提示，不把回答标成失败
-      if (finished && searchWarning != null) {
-        _error = searchWarning;
-      }
+      return _StreamAttempt(refused: refused, finishReason: finishReason);
     } catch (e) {
-      // 三类失败要分开：超时是「等太久了」，服务商错误是「对方挂了」，
-      // 网络错误是「你自己的网断了」——用户下一步动作完全不同。
-      final String kind = classifyFailure(e);
-      final String msg = e is DeepSeekException
-          ? e.message
-          : _friendlyFailureMessage(kind);
-
-      if (token == _activeToken && !receivedAny) {
-        // 一个字都没收到：把空气泡换成错误气泡，不留空白
-        assistant.content = msg;
-        assistant.error = true;
-        assistant.failureKind = kind;
-      } else if (token == _activeToken) {
-        // 已经收到一部分：保留内容，把错误追加在后面
-        assistant.content += '\n\n> ⚠️ 连接中断：$msg';
-        assistant.failureKind = kind;
-      }
-      if (token == _activeToken) _error = msg;
-    } finally {
-      // 收尾：先取消尚未触发的节流定时器，避免它在 _loading 变 false 后再通知一次
-      notifier?.cancel();
-      // 空内容气泡直接丢掉，避免历史里出现空白消息
-      if (assistant.isBlank) {
-        conv.messages.remove(assistant);
-      }
-      if (token == _activeToken) _loading = false;
-      if (identical(_requestDone, done)) {
-        _checkpoint?.cancel();
-        _api.cancel();
-        final subscription = _subscription;
-        if (subscription != null) unawaited(subscription.cancel());
-        _subscription = null;
-        _requestDone = null;
-      }
-      notifyListeners();
-      await _persist(conv);
+      return _StreamAttempt(
+        refused: refused,
+        error: e,
+        finishReason: finishReason,
+      );
     }
+  }
+
+  static const List<String> _refusalMarkers = <String>[
+    '抱歉',
+    '对不起',
+    '我不能',
+    '我无法',
+    '无法提供',
+    '无法协助',
+    '无法帮助',
+    '无法满足',
+    '不能提供',
+    '不予提供',
+    '不便提供',
+    '违反',
+    "I can't",
+    'I cannot',
+    "I'm sorry",
+    'cannot assist',
+    'unable to',
+    "I won't",
+  ];
+
+  /// 只把「开头就拒」当拒答：正文超过 200 字后出现“抱歉”不算。
+  bool _looksLikeRefusal(String text) {
+    final String trimmed = text.trimLeft();
+    if (trimmed.isEmpty) return false;
+    if (text.length > 200) return false;
+    final String head = trimmed.length > 120
+        ? trimmed.substring(0, 120)
+        : trimmed;
+    return _refusalMarkers.any(head.contains);
   }
 
   /// 停止生成：中断流式接收，已经收到的内容保留。
@@ -634,4 +749,12 @@ class ChatProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+}
+
+class _StreamAttempt {
+  const _StreamAttempt({this.refused = false, this.error, this.finishReason});
+
+  final bool refused;
+  final Object? error;
+  final String? finishReason;
 }

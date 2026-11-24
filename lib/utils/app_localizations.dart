@@ -530,4 +530,18 @@ const _labels = <String, (String, String)>{
   '复制为自定义': ('複製為自訂', 'Copy as custom'),
   '（副本）': ('（副本）', ' (copy)'),
   '已复制为自定义插件': ('已複製為自訂外掛', 'Copied as a custom plugin'),
+  '拒答处理': ('拒答處理', 'Refusal handling'),
+  '拒答自动重试': ('拒答自動重試', 'Retry on refusal'),
+  '命中拒答时用预填充再试一次，仍失败则换备用服务商': (
+    '命中拒答時用預填充再試一次，仍失敗則換備用服務商',
+    'Retry once with a prefilled opener, then switch to the fallback provider',
+  ),
+  '始终预填充': ('始終預填充', 'Always prefill'),
+  '每条回答都带开头，可能影响正常输出': (
+    '每條回答都帶開頭，可能影響正常輸出',
+    'Every reply gets a prefilled opener; may affect normal output',
+  ),
+  '预填充开头': ('預填充開頭', 'Prefill opener'),
+  '拒答后备用服务商': ('拒答後備用服務商', 'Fallback provider on refusal'),
+  '不切换': ('不切換', 'No fallback'),
 };

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:deepseek_chat/models/app_settings.dart';
+import 'package:deepseek_chat/models/provider_catalog.dart';
 import 'package:deepseek_chat/providers/app_settings_provider.dart';
 import 'package:deepseek_chat/utils/app_localizations.dart';
 import 'package:deepseek_chat/widgets/thinking_level_slider.dart';
@@ -21,6 +22,13 @@ class ModelBehaviourPage extends StatefulWidget {
 
 class _ModelBehaviourPageState extends State<ModelBehaviourPage> {
   bool _busy = false;
+  TextEditingController? _prefill;
+
+  @override
+  void dispose() {
+    _prefill?.dispose();
+    super.dispose();
+  }
 
   Future<void> _update(Future<void> Function() action) async {
     if (_busy) return;
@@ -82,6 +90,83 @@ class _ModelBehaviourPageState extends State<ModelBehaviourPage> {
           const Divider(),
           const SizedBox(height: 8),
 
+          Text(tr(context, '拒答处理'), style: theme.textTheme.titleSmall),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            secondary: const Icon(Icons.replay),
+            title: Text(tr(context, '拒答自动重试')),
+            subtitle: Text(tr(context, '命中拒答时用预填充再试一次，仍失败则换备用服务商')),
+            value: s.refusalRetry,
+            onChanged: (bool v) => _update(
+              () => provider.updateRetryPrefill(refusalRetry: v),
+            ),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            secondary: const Icon(Icons.playlist_add_check),
+            title: Text(tr(context, '始终预填充')),
+            subtitle: Text(tr(context, '每条回答都带开头，可能影响正常输出')),
+            value: s.alwaysPrefill,
+            onChanged: (bool v) => _update(
+              () => provider.updateRetryPrefill(alwaysPrefill: v),
+            ),
+          ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: <Widget>[
+              Expanded(
+                child: TextField(
+                  controller: _prefill ??= TextEditingController(
+                    text: s.prefillText,
+                  ),
+                  maxLength: 200,
+                  decoration: InputDecoration(
+                    labelText: tr(context, '预填充开头'),
+                    counterText: '',
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              TextButton(
+                onPressed: () {
+                  final String text = (_prefill?.text ?? '').trim();
+                  if (text.isEmpty) return;
+                  _update(
+                    () => provider.updateRetryPrefill(prefillText: text),
+                  );
+                },
+                child: Text(tr(context, '保存')),
+              ),
+            ],
+          ),
+          DropdownButtonFormField<String>(
+            borderRadius: BorderRadius.circular(20),
+            initialValue: s.fallbackProviderId,
+            isExpanded: true,
+            decoration: InputDecoration(
+              labelText: tr(context, '拒答后备用服务商'),
+            ),
+            items: <DropdownMenuItem<String>>[
+              DropdownMenuItem<String>(
+                value: '',
+                child: Text(tr(context, '不切换')),
+              ),
+              for (final ProviderPreset preset in providerCatalog)
+                if (preset.id != 'custom')
+                  DropdownMenuItem<String>(
+                    value: preset.id,
+                    child: Text(preset.name),
+                  ),
+            ],
+            onChanged: (String? value) => _update(
+              () => provider.updateRetryPrefill(
+                fallbackProviderId: value ?? '',
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Divider(),
+          const SizedBox(height: 8),
           Text(tr(context, '图片细节档位'), style: theme.textTheme.titleSmall),
           Wrap(
             spacing: 8,

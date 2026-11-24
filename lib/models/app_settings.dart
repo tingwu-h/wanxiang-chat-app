@@ -32,6 +32,11 @@ class AppSettings {
     this.plugins = const <PromptPlugin>[],
     this.pluginOverrideAppLines = false,
     this.enabledBuiltinPlugins = kDefaultEnabledBuiltinPlugins,
+    this.prefillText = defaultPrefillText,
+    this.alwaysPrefill = false,
+    this.prefillEnabled = false,
+    this.refusalRetry = true,
+    this.fallbackProviderId = '',
   });
 
   /// DeepSeek 官方 API 基地址
@@ -97,6 +102,9 @@ class AppSettings {
   /// 注意：这是文档值，本机没有有效 API Key，**未做真实调用验证**；
   /// 如果调用报「模型不存在」，用设置页的「自定义模型名」填上你账号可用的模型即可。
   static const String defaultModel = 'deepseek-flash';
+
+  /// 预填充开头的默认文本（只在拒答重试或“始终预填充”时使用）
+  static const String defaultPrefillText = '好的，以下是完整实现：';
 
   /// 预置模型（列表里可选的）
   ///
@@ -181,6 +189,10 @@ class AppSettings {
       'plugins': plugins,
       'pluginOverrideAppLines': pluginOverrideAppLines,
       'enabledBuiltinPlugins': enabledBuiltinPlugins,
+      'prefillText': prefillText,
+      'alwaysPrefill': alwaysPrefill,
+      'refusalRetry': refusalRetry,
+      'fallbackProviderId': fallbackProviderId,
     });
   }
 
@@ -247,6 +259,21 @@ class AppSettings {
   /// 已启用的内置插件 id（内置正文随包更新，不存进设置）。
   final List<String> enabledBuiltinPlugins;
 
+  /// 预填充开头文本（assistant prefill）。
+  final String prefillText;
+
+  /// 是否每次都带预填充（默认关，只在拒答重试时自动使用）。
+  final bool alwaysPrefill;
+
+  /// 本次请求是否带预填充：运行时按重试策略设置，不持久化。
+  final bool prefillEnabled;
+
+  /// 命中拒答时是否自动重试。
+  final bool refusalRetry;
+
+  /// 重试失败时切换的备用服务商 id；空串表示不切换。
+  final String fallbackProviderId;
+
   /// 实际用于搜索的 Key：优先专用 Key，否则复用 DeepSeek 那家的
   String get effectiveSearchApiKey {
     final String own = searchApiKey.trim();
@@ -306,6 +333,11 @@ class AppSettings {
     List<PromptPlugin>? plugins,
     bool? pluginOverrideAppLines,
     List<String>? enabledBuiltinPlugins,
+    String? prefillText,
+    bool? alwaysPrefill,
+    bool? prefillEnabled,
+    bool? refusalRetry,
+    String? fallbackProviderId,
   }) {
     return AppSettings(
       savedModels: {
@@ -343,6 +375,11 @@ class AppSettings {
           pluginOverrideAppLines ?? this.pluginOverrideAppLines,
       enabledBuiltinPlugins:
           enabledBuiltinPlugins ?? this.enabledBuiltinPlugins,
+      prefillText: prefillText ?? this.prefillText,
+      alwaysPrefill: alwaysPrefill ?? this.alwaysPrefill,
+      prefillEnabled: prefillEnabled ?? this.prefillEnabled,
+      refusalRetry: refusalRetry ?? this.refusalRetry,
+      fallbackProviderId: fallbackProviderId ?? this.fallbackProviderId,
     );
   }
 
@@ -374,6 +411,10 @@ class AppSettings {
     'plugins': PromptPlugin.listToJson(plugins),
     'pluginOverrideAppLines': pluginOverrideAppLines,
     'enabledBuiltinPlugins': enabledBuiltinPlugins,
+    'prefillText': prefillText,
+    'alwaysPrefill': alwaysPrefill,
+    'refusalRetry': refusalRetry,
+    'fallbackProviderId': fallbackProviderId,
   };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
@@ -428,6 +469,15 @@ class AppSettings {
                 .whereType<String>()
                 .toList()
           : kDefaultEnabledBuiltinPlugins,
+      prefillText:
+          (json['prefillText'] as String?)?.trim().isNotEmpty == true
+          ? json['prefillText'] as String
+          : defaultPrefillText,
+      alwaysPrefill: json['alwaysPrefill'] == true,
+      refusalRetry: json['refusalRetry'] is bool
+          ? json['refusalRetry'] as bool
+          : true,
+      fallbackProviderId: (json['fallbackProviderId'] as String?) ?? '',
     );
   }
 

@@ -150,6 +150,21 @@ class AppSettingsProvider extends ChangeNotifier {
     return replace(_settings.copyWith(enabledBuiltinPlugins: next));
   }
 
+  /// 预填充与拒答重试设置。
+  Future<void> updateRetryPrefill({
+    String? prefillText,
+    bool? alwaysPrefill,
+    bool? refusalRetry,
+    String? fallbackProviderId,
+  }) => replace(
+    _settings.copyWith(
+      prefillText: prefillText,
+      alwaysPrefill: alwaysPrefill,
+      refusalRetry: refusalRetry,
+      fallbackProviderId: fallbackProviderId,
+    ),
+  );
+
   /// 一键恢复默认（会同时清空 API Key）
   Future<void> resetToDefaults() => replace(AppSettings());
 }

@@ -45,8 +45,7 @@ class ApiProtocol {
         ]
       : List<Map<String, dynamic>>.from(content as List);
 
-  static Map<String, String> imageData(Map<String, dynamic> b) {
-    final url = (b['image_url'] as Map)['url'] as String;
+  static Map<String, String> imageData(Map<String, dynamic> b) {    final url = (b['image_url'] as Map)['url'] as String;
     final match = RegExp(
       r'^data:([^;]+);base64,(.*)$',
       dotAll: true,
@@ -54,6 +53,15 @@ class ApiProtocol {
     if (match == null) throw const FormatException('仅支持本地图片附件');
     return {'mime': match.group(1)!, 'data': match.group(2)!};
   }
+
+  /// 是否给这次请求加 assistant 预填充。
+  ///
+  /// DeepSeek/OpenAI 兼容与 Anthropic 支持末尾 assistant 消息；
+  /// Responses 与 Gemini 没有对应写法，直接跳过。
+  static bool prefillActive(AppSettings s) =>
+      s.prefillEnabled &&
+      s.prefillText.trim().isNotEmpty &&
+      (s.protocol == 'openai' || s.protocol == 'anthropic');
 
   static Map<String, dynamic> body(
     AppSettings s,
@@ -67,31 +75,40 @@ class ApiProtocol {
     final turns = messages.where((m) => m['role'] != 'system').toList();
     switch (s.protocol) {
       case 'anthropic':
+        final List<Map<String, dynamic>> outgoing = turns
+            .map(
+              (m) => {
+                'role': m['role'],
+                'content': blocks(m['content']).map((b) {
+                  if (b['type'] != 'image_url') return b;
+                  final i = imageData(b);
+                  return {
+                    'type': 'image',
+                    'source': {
+                      'type': 'base64',
+                      'media_type': i['mime'],
+                      'data': i['data'],
+                    },
+                  };
+                }).toList(),
+              },
+            )
+            .toList();
+        if (prefillActive(s)) {
+          outgoing.add(<String, dynamic>{
+            'role': 'assistant',
+            'content': <Map<String, dynamic>>[
+              {'type': 'text', 'text': s.prefillText.trim()},
+            ],
+          });
+        }
         return {
           'model': s.model,
           // 4096 会把长回答截断（官方最大输出 384K）；8192 兼容性较好。
           'max_tokens': 8192,
           'stream': stream,
           if (system.isNotEmpty) 'system': system,
-          'messages': turns
-              .map(
-                (m) => {
-                  'role': m['role'],
-                  'content': blocks(m['content']).map((b) {
-                    if (b['type'] != 'image_url') return b;
-                    final i = imageData(b);
-                    return {
-                      'type': 'image',
-                      'source': {
-                        'type': 'base64',
-                        'media_type': i['mime'],
-                        'data': i['data'],
-                      },
-                    };
-                  }).toList(),
-                },
-              )
-              .toList(),
+          'messages': outgoing,
         };
       case 'gemini':
         return {
@@ -149,10 +166,22 @@ class ApiProtocol {
               .toList(),
         };
       default:
+        final bool prefill = prefillActive(s);
+        final List<Map<String, dynamic>> outgoing = prefill
+            ? <Map<String, dynamic>>[
+                ...messages,
+                <String, dynamic>{
+                  'role': 'assistant',
+                  'content': s.prefillText.trim(),
+                },
+              ]
+            : messages;
         return {
           'model': s.model,
-          'messages': messages,
+          'messages': outgoing,
           'stream': stream,
+          // DeepSeek 前缀续写：需要 prefix: true 才会把末尾 assistant 当开头
+          if (s.providerId == 'deepseek' && prefill) 'prefix': true,
           // DeepSeek 思考模式：官方用 thinking.type 开关，reasoning_effort 控强度。
           // 官方默认开启思考模式，所以缺省状态与官方一致。
           if (s.providerId == 'deepseek') ...<String, dynamic>{
