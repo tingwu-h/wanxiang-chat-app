@@ -162,6 +162,18 @@ class _UpdateTileState extends State<_UpdateTile> {
     } on UpdateException catch (e) {
       if (!mounted) return;
       setState(() => _result = e.message);
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(e.message),
+            action: SnackBarAction(
+              label: tr(context, '打开发布页'),
+              onPressed: () =>
+                  openExternalUrl(context, UpdateService.releasesUrl),
+            ),
+          ),
+        );
     } finally {
       if (mounted) setState(() => _checking = false);
     }
@@ -176,7 +188,9 @@ class _UpdateTileState extends State<_UpdateTile> {
           width: double.maxFinite,
           child: SingleChildScrollView(
             child: SelectableText(
-              info.body.isEmpty ? tr(ctx, '暂无更新说明') : info.body,
+              info.body.isEmpty
+                  ? tr(ctx, '未能获取更新说明，请打开下载页查看')
+                  : info.body,
             ),
           ),
         ),

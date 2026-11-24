@@ -553,6 +553,11 @@ const _labels = <String, (String, String)>{
   '打开下载页': ('開啟下載頁', 'Open download page'),
   '稍后': ('稍後', 'Later'),
   '暂无更新说明': ('暫無更新說明', 'No release notes'),
+  '未能获取更新说明，请打开下载页查看': (
+    '未能取得更新說明，請開啟下載頁查看',
+    'Release notes unavailable; open the download page',
+  ),
+  '打开发布页': ('開啟發布頁', 'Open releases page'),
   '当前 v{version}': ('目前 v{version}', 'Current v{version}'),
   '支持生成文件': ('支援生成檔案', 'File generation supported'),
   '暂不支持生成文件': ('暫不支援生成檔案', 'File generation not supported'),

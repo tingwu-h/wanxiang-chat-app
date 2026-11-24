@@ -52,7 +52,7 @@ void main() {
 
     test('非 200 抛出可读错误', () async {
       final UpdateService service = serviceWith(
-        MockClient((http.Request request) async => http.Response('', 403)),
+        MockClient((http.Request request) async => http.Response('', 500)),
       );
       expect(
         () => service.latest(),
@@ -60,7 +60,7 @@ void main() {
           isA<UpdateException>().having(
             (UpdateException e) => e.message,
             'message',
-            contains('403'),
+            contains('500'),
           ),
         ),
       );
@@ -78,6 +78,41 @@ void main() {
     test('不是 JSON 报错', () async {
       final UpdateService service = serviceWith(
         MockClient((http.Request request) async => http.Response('oops', 200)),
+      );
+      expect(() => service.latest(), throwsA(isA<UpdateException>()));
+    });
+    test('403 限流时回退到发布页跳转', () async {
+      final UpdateService service = serviceWith(
+        MockClient((http.Request request) async {
+          if (request.url.host == 'api.github.com') {
+            return http.Response('rate limited', 403);
+          }
+          return http.Response('', 302, headers: <String, String>{
+            'location':
+                'https://github.com/tingwu-h/wanxiang-chat-app/releases/tag/v1.7.0',
+          });
+        }),
+      );
+      final UpdateInfo info = await service.latest();
+      expect(info.version, '1.7.0');
+      expect(info.url, contains('/releases/tag/v1.7.0'));
+    });
+
+    test('发布页没有版本号时报错', () async {
+      final UpdateService service = serviceWith(
+        MockClient((http.Request request) async {
+          if (request.url.host == 'api.github.com') {
+            return http.Response('rate limited', 429);
+          }
+          return http.Response('ok', 200);
+        }),
+      );
+      expect(() => service.latest(), throwsA(isA<UpdateException>()));
+    });
+
+    test('非限流的 500 不回退', () async {
+      final UpdateService service = serviceWith(
+        MockClient((http.Request request) async => http.Response('', 500)),
       );
       expect(() => service.latest(), throwsA(isA<UpdateException>()));
     });
