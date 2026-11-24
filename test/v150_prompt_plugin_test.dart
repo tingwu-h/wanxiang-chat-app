@@ -170,6 +170,7 @@ void main() {
           plugin('a', 'A'),
           plugin('b', 'B'),
         ],
+        enabledBuiltinPlugins: const <String>[],
       );
       expect(PromptAssembler.resolve(settings, null).length, 2);
       expect(PromptAssembler.resolve(settings, <String>[]), isEmpty);
@@ -247,6 +248,7 @@ void main() {
           model: 'deepseek-flash',
           apiKey: 'k',
           plugins: <PromptPlugin>[plugin('a', '破冰指令')],
+          enabledBuiltinPlugins: const <String>[],
         ),
       );
       expect(api.captured!.systemPrompt, startsWith('破冰指令'));
@@ -256,9 +258,14 @@ void main() {
       final (ChatProvider provider, CapturingApi api, _) = await ready();
       await provider.send(
         '你好',
-        AppSettings(model: 'deepseek-flash', apiKey: 'k'),
+        AppSettings(
+          model: 'deepseek-flash',
+          apiKey: 'k',
+          enabledBuiltinPlugins: const <String>[],
+        ),
       );
       expect(api.captured!.systemPrompt, isNot(contains('破冰')));
+      expect(api.captured!.systemPrompt, isNot(contains('最高优先级指令')));
       expect(api.captured!.systemPrompt, contains('当前时间是'));
     });
 

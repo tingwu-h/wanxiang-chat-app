@@ -524,4 +524,10 @@ const _labels = <String, (String, String)>{
     '還沒有外掛，請先到設定裡新增',
     'No plugins yet. Create one in Settings first.',
   ),
+  '内置': ('內建', 'Built-in'),
+  '随应用内置': ('隨應用程式內建', 'Bundled with the app'),
+  '自定义': ('自訂', 'Custom'),
+  '复制为自定义': ('複製為自訂', 'Copy as custom'),
+  '（副本）': ('（副本）', ' (copy)'),
+  '已复制为自定义插件': ('已複製為自訂外掛', 'Copied as a custom plugin'),
 };

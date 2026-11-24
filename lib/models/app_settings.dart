@@ -1,5 +1,6 @@
 import 'package:deepseek_chat/models/provider_catalog.dart';
 import 'package:deepseek_chat/models/prompt_plugin.dart';
+import 'package:deepseek_chat/services/builtin_plugins.dart';
 
 /// 内存设置模型；落盘时密钥与普通设置分开保存。
 class AppSettings {
@@ -30,6 +31,7 @@ class AppSettings {
     this.injectCurrentTime = true,
     this.plugins = const <PromptPlugin>[],
     this.pluginOverrideAppLines = false,
+    this.enabledBuiltinPlugins = kDefaultEnabledBuiltinPlugins,
   });
 
   /// DeepSeek 官方 API 基地址
@@ -178,6 +180,7 @@ class AppSettings {
       'injectCurrentTime': injectCurrentTime,
       'plugins': plugins,
       'pluginOverrideAppLines': pluginOverrideAppLines,
+      'enabledBuiltinPlugins': enabledBuiltinPlugins,
     });
   }
 
@@ -241,6 +244,9 @@ class AppSettings {
   /// 覆盖模式：清掉应用自动注入的时间行与检索引导语。
   final bool pluginOverrideAppLines;
 
+  /// 已启用的内置插件 id（内置正文随包更新，不存进设置）。
+  final List<String> enabledBuiltinPlugins;
+
   /// 实际用于搜索的 Key：优先专用 Key，否则复用 DeepSeek 那家的
   String get effectiveSearchApiKey {
     final String own = searchApiKey.trim();
@@ -299,6 +305,7 @@ class AppSettings {
     bool? injectCurrentTime,
     List<PromptPlugin>? plugins,
     bool? pluginOverrideAppLines,
+    List<String>? enabledBuiltinPlugins,
   }) {
     return AppSettings(
       savedModels: {
@@ -334,6 +341,8 @@ class AppSettings {
       plugins: plugins ?? this.plugins,
       pluginOverrideAppLines:
           pluginOverrideAppLines ?? this.pluginOverrideAppLines,
+      enabledBuiltinPlugins:
+          enabledBuiltinPlugins ?? this.enabledBuiltinPlugins,
     );
   }
 
@@ -364,6 +373,7 @@ class AppSettings {
     'injectCurrentTime': injectCurrentTime,
     'plugins': PromptPlugin.listToJson(plugins),
     'pluginOverrideAppLines': pluginOverrideAppLines,
+    'enabledBuiltinPlugins': enabledBuiltinPlugins,
   };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
@@ -412,6 +422,12 @@ class AppSettings {
           : true,
       plugins: PromptPlugin.listFromJson(json['plugins']),
       pluginOverrideAppLines: json['pluginOverrideAppLines'] == true,
+      // 旧数据没有这个字段：升级后默认启用内置破甲。
+      enabledBuiltinPlugins: json['enabledBuiltinPlugins'] is List
+          ? (json['enabledBuiltinPlugins'] as List<dynamic>)
+                .whereType<String>()
+                .toList()
+          : kDefaultEnabledBuiltinPlugins,
     );
   }
 

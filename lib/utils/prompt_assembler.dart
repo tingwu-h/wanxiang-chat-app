@@ -1,5 +1,6 @@
 import 'package:deepseek_chat/models/app_settings.dart';
 import 'package:deepseek_chat/models/prompt_plugin.dart';
+import 'package:deepseek_chat/services/builtin_plugins.dart';
 
 /// 把「插件 + 时间行 + 用户提示词 + 检索资料」拼成最终 system prompt。
 ///
@@ -14,11 +15,21 @@ class PromptAssembler {
     AppSettings settings,
     List<String>? sessionIds,
   ) {
-    if (sessionIds == null) return settings.plugins;
+    final List<PromptPlugin> builtins = <PromptPlugin>[
+      for (final PromptPlugin plugin in kBuiltinPlugins)
+        if (settings.enabledBuiltinPlugins.contains(plugin.id)) plugin,
+    ];
+    final List<PromptPlugin> customs = settings.plugins;
+    if (sessionIds == null) {
+      return <PromptPlugin>[...builtins, ...customs];
+    }
     final Set<String> ids = sessionIds.toSet();
-    return settings.plugins
-        .where((PromptPlugin p) => ids.contains(p.id))
-        .toList();
+    return <PromptPlugin>[
+      for (final PromptPlugin plugin in builtins)
+        if (ids.contains(plugin.id)) plugin,
+      for (final PromptPlugin plugin in customs)
+        if (ids.contains(plugin.id)) plugin,
+    ];
   }
 
   /// 拼装最终提示词。
@@ -45,10 +56,11 @@ class PromptAssembler {
 
     final List<PromptPlugin> usable =
         plugins.where((PromptPlugin p) => p.isUsable).toList()
-          ..sort(
-            (PromptPlugin a, PromptPlugin b) =>
-                a.priority.compareTo(b.priority),
-          );
+          ..sort((PromptPlugin a, PromptPlugin b) {
+            // 内置永远排最前，其次才看 priority，避免自定义的 0 抢到前面。
+            if (a.builtin != b.builtin) return a.builtin ? -1 : 1;
+            return a.priority.compareTo(b.priority);
+          });
 
     final List<String> parts = <String>[];
     int used = 0;

@@ -7,6 +7,7 @@ import 'package:deepseek_chat/models/chat_attachment.dart';
 import 'package:deepseek_chat/models/prompt_plugin.dart';
 import 'package:deepseek_chat/providers/app_settings_provider.dart';
 import 'package:deepseek_chat/services/attachment_service.dart';
+import 'package:deepseek_chat/services/builtin_plugins.dart';
 import 'package:deepseek_chat/services/platform_service.dart';
 import 'package:deepseek_chat/utils/app_localizations.dart';
 import 'package:deepseek_chat/utils/prompt_assembler.dart';
@@ -82,9 +83,56 @@ class PluginSettingsPage extends StatelessWidget {
       ..showSnackBar(SnackBar(content: Text(text)));
   }
 
+  void _viewBuiltin(
+    BuildContext context,
+    AppSettingsProvider provider,
+    PromptPlugin plugin,
+  ) {
+    showDialog<void>(
+      context: context,
+      builder: (BuildContext ctx) => AlertDialog(
+        title: Text(plugin.name),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(child: SelectableText(plugin.body)),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _copyBuiltin(context, provider, plugin);
+            },
+            child: Text(tr(ctx, '复制为自定义')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(tr(ctx, '关闭')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _copyBuiltin(
+    BuildContext context,
+    AppSettingsProvider provider,
+    PromptPlugin plugin,
+  ) async {
+    final PromptPlugin copy = PromptPlugin(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      name: '${plugin.name}${tr(context, '（副本）')}',
+      body: plugin.body,
+      priority: 100 + provider.settings.plugins.length,
+    );
+    await provider.updatePlugins(
+      plugins: <PromptPlugin>[...provider.settings.plugins, copy],
+    );
+    if (context.mounted) _snack(context, tr(context, '已复制为自定义插件'));
+  }
+
   void _preview(BuildContext context, AppSettingsProvider provider) {
     final String sample = PromptAssembler.build(
-      plugins: provider.settings.plugins,
+      plugins: PromptAssembler.resolve(provider.settings, null),
       dateLine: '当前时间是 2026-01-01 12:00（星期四，设备本地时间）。',
       basePrompt: provider.settings.systemPrompt,
       searchContext: '',
@@ -172,6 +220,45 @@ class PluginSettingsPage extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
+          Text(tr(context, '内置'), style: theme.textTheme.titleSmall),
+          for (final PromptPlugin plugin in kBuiltinPlugins)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.lock_outline),
+              title: Row(
+                children: <Widget>[
+                  Text(plugin.name),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: scheme.secondaryContainer,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      tr(context, '内置'),
+                      style: theme.textTheme.labelSmall,
+                    ),
+                  ),
+                ],
+              ),
+              subtitle: Text(
+                '${plugin.body.length} 字 · ${tr(context, '随应用内置')}',
+              ),
+              onTap: () => _viewBuiltin(context, provider, plugin),
+              trailing: Switch(
+                value: provider.settings.enabledBuiltinPlugins.contains(
+                  plugin.id,
+                ),
+                onChanged: (bool v) =>
+                    provider.toggleBuiltinPlugin(plugin.id, v),
+              ),
+            ),
+          const Divider(),
+          Text(tr(context, '自定义'), style: theme.textTheme.titleSmall),
           if (plugins.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 24),

@@ -16,10 +16,12 @@ import 'package:deepseek_chat/pages/settings_page.dart';
 import 'package:deepseek_chat/providers/app_settings_provider.dart';
 import 'package:deepseek_chat/providers/chat_provider.dart';
 import 'package:deepseek_chat/services/attachment_service.dart';
+import 'package:deepseek_chat/services/builtin_plugins.dart';
 import 'package:deepseek_chat/services/platform_service.dart';
 import 'package:deepseek_chat/widgets/chat_input_bar.dart';
 import 'package:deepseek_chat/widgets/conversation_drawer.dart';
 import 'package:deepseek_chat/widgets/message_list_view.dart';
+import 'package:deepseek_chat/utils/prompt_assembler.dart';
 import 'package:deepseek_chat/utils/app_localizations.dart';
 
 /// 主页面：悬浮操作栏、消息列表、悬浮输入框及当前服务商模型选择。
@@ -367,10 +369,18 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   /// 本会话启用哪些指令插件。
   Future<void> _editConversationPlugins(ChatProvider chat) async {
     final AppSettingsProvider settings = context.read<AppSettingsProvider>();
-    final List<PromptPlugin> plugins = settings.settings.plugins;
+    final List<PromptPlugin> all = <PromptPlugin>[
+      ...kBuiltinPlugins,
+      ...settings.settings.plugins,
+    ];
     final List<String>? current = chat.activePluginIds;
     bool follow = current == null;
-    final Set<String> selected = <String>{...?current};
+    final Set<String> selected = current == null
+        ? PromptAssembler.resolve(
+            settings.settings,
+            null,
+          ).map((PromptPlugin p) => p.id).toSet()
+        : current.toSet();
 
     final (bool, List<String>)? result = await showDialog<(bool, List<String>)>(
       context: context,
@@ -392,13 +402,13 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                   ),
                   if (!follow) ...<Widget>[
                     const Divider(),
-                    if (plugins.isEmpty)
+                    if (all.isEmpty)
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         child: Text(tr(ctx, '还没有插件，请先到设置里新建')),
                       )
                     else
-                      for (final PromptPlugin plugin in plugins)
+                      for (final PromptPlugin plugin in all)
                         CheckboxListTile(
                           contentPadding: EdgeInsets.zero,
                           value: selected.contains(plugin.id),
@@ -410,9 +420,11 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                             }
                           }),
                           title: Text(
-                            plugin.name.trim().isEmpty
-                                ? tr(ctx, '未命名插件')
-                                : plugin.name,
+                            plugin.builtin
+                                ? '${plugin.name} · ${tr(ctx, '内置')}'
+                                : (plugin.name.trim().isEmpty
+                                      ? tr(ctx, '未命名插件')
+                                      : plugin.name),
                           ),
                         ),
                   ],

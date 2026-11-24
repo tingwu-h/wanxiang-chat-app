@@ -137,6 +137,19 @@ class AppSettingsProvider extends ChangeNotifier {
     ),
   );
 
+  /// 开关内置插件（正文随包更新，只保存启用状态）。
+  Future<void> toggleBuiltinPlugin(String id, bool enabled) {
+    final List<String> next = List<String>.from(
+      _settings.enabledBuiltinPlugins,
+    );
+    if (enabled) {
+      if (!next.contains(id)) next.add(id);
+    } else {
+      next.remove(id);
+    }
+    return replace(_settings.copyWith(enabledBuiltinPlugins: next));
+  }
+
   /// 一键恢复默认（会同时清空 API Key）
   Future<void> resetToDefaults() => replace(AppSettings());
 }

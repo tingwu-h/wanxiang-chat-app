@@ -8,6 +8,7 @@ class PromptPlugin {
     required this.body,
     this.enabled = true,
     this.priority = 0,
+    this.builtin = false,
   });
 
   /// 单条正文上限
@@ -24,6 +25,9 @@ class PromptPlugin {
   /// 越小越靠前；相同值保持列表顺序。
   final int priority;
 
+  /// 是否随 App 内置。内置项不可编辑、不可删除，只能开关或复制。
+  final bool builtin;
+
   bool get isUsable => enabled && body.trim().isNotEmpty;
 
   PromptPlugin copyWith({
@@ -32,12 +36,14 @@ class PromptPlugin {
     String? body,
     bool? enabled,
     int? priority,
+    bool? builtin,
   }) => PromptPlugin(
     id: id ?? this.id,
     name: name ?? this.name,
     body: body ?? this.body,
     enabled: enabled ?? this.enabled,
     priority: priority ?? this.priority,
+    builtin: builtin ?? this.builtin,
   );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -46,6 +52,7 @@ class PromptPlugin {
     'body': body,
     'enabled': enabled,
     'priority': priority,
+    if (builtin) 'builtin': true,
   };
 
   factory PromptPlugin.fromJson(Map<String, dynamic> json) => PromptPlugin(
@@ -54,6 +61,7 @@ class PromptPlugin {
     body: (json['body'] as String?) ?? '',
     enabled: json['enabled'] is bool ? json['enabled'] as bool : true,
     priority: (json['priority'] as num?)?.toInt() ?? 0,
+    builtin: json['builtin'] == true,
   );
 
   static List<PromptPlugin> listFromJson(dynamic raw) {
